@@ -1,5 +1,15 @@
 # gpsdec
 
+![alt text](https://i.imgur.com/X2yUh3l.png, "Example")
+
+
+## Simulate GPS Distance Calculation 
+### Features
+- Move characters P & Q to respective locations
+- Add Buildings to complicate signal strength
+- Add weather effects to complicate signals
+- Adjust amount of satellites or introduce gps clock drift
+
 With the advent of the modern Global Positioning System and all its use cases,
 there still exists today an overwhelming issue with the overall size of distances
 calculated by the space-based radionavigation system.
