@@ -1,9 +1,10 @@
 # gpsdec
 
+## Simulate GPS Distance Calculation 
+
+
 ![alt text](https://i.imgur.com/X2yUh3l.png, "Example")
 
-
-## Simulate GPS Distance Calculation 
 ### Features
 - Move characters P & Q to respective locations
 - Add Buildings to complicate signal strength
