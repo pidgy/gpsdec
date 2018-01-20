@@ -18,6 +18,7 @@ import (
 var (
 	displayMessage      string
 	displayMessageCount int
+	displayMessageSize  *basicfont.Face
 	second              = time.Tick(time.Second)
 	millisecond         = time.Tick(time.Millisecond * 100)
 	framespersecond     int
@@ -28,6 +29,7 @@ var (
 	numHumans           = 1
 	numButtons          = 4
 	numSatellites       = 3
+	standardFont        = basicfont.Face7x13
 )
 
 func remove(s []message, i int) []message {
@@ -39,6 +41,7 @@ func drawUnits() []*text.Text {
 	j := 0
 	maxYInt := int(maxY)
 	var texts []*text.Text
+	return texts
 	for i := 100; i < maxYInt; i += int(maxYInt / 10) {
 		basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 		basicTxt := text.New(pixel.V(10, float64(i)), basicAtlas)
@@ -49,8 +52,13 @@ func drawUnits() []*text.Text {
 	return texts
 }
 
+func drawMessage(m string, c int, s *basicfont.Face) {
+	displayMessage = m
+	displayMessageCount = c
+	displayMessageSize = s
+}
+
 func run() {
-	units := drawUnits()
 	cfg := pixelgl.WindowConfig{
 		Title:  "GPS Error Simulations",
 		Bounds: pixel.R(0, 0, maxX, maxY),
@@ -72,15 +80,28 @@ func run() {
 	flip := 0
 
 	var walkMap map[int][]object
+	var rainSprites []*pixel.Sprite
+	var buildingSprites []*pixel.Sprite
+
+	for i := range rain {
+		rainSprites = append(rainSprites, pixel.NewSprite(rain[i].pic, rain[i].frame))
+	}
+
+	controlPic, err := loadPicture(spritedirectory + "controls.png")
+	if err != nil {
+		panic(err)
+	}
+	controls := pixel.NewSprite(controlPic, controlPic.Bounds())
+	controls.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
+	for !win.JustReleased(pixelgl.MouseButtonLeft) {
+		time.Sleep(1000)
+		win.Update()
+	}
 
 	for !win.Closed() {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 		win.Clear(colornames.Skyblue)
-
-		for i := range units {
-			units[i].Draw(win, pixel.IM)
-		}
 
 		// Draw the satellites
 		satelliteAngle += 2 * dt
@@ -110,6 +131,8 @@ func run() {
 			switch whereClick(win.MousePosition()) {
 			case noCollision:
 				f := buildFrames[currBuildingName]
+				building := pixel.NewSprite(buildPic, f)
+				buildingSprites = append(buildingSprites, building)
 				buildings = append(buildings, object{
 					pic:   buildPic,
 					posX:  win.MousePosition().X - f.W()/2,
@@ -117,22 +140,18 @@ func run() {
 					frame: f,
 					mat:   pixel.IM.Moved(win.MousePosition())})
 			case buildingCollision:
-				displayMessage = "Cannot place a building on top of another building!"
-				displayMessageCount = 100
+				drawMessage("Cannot place a building on top of another building!", 100, standardFont)
 			case buttonBuildingCollision:
 				currBuildingName = (currBuildingName + 1) % len(buildFrames)
-				displayMessage = buildingNames[currBuildingName] + " Selected"
-				displayMessageCount = 100
+				drawMessage(buildingNames[currBuildingName]+" Selected", 100, standardFont)
 				buttons[0].drawcount = 10
 			case buttonWeatherCollision:
 				buttons[1].drawcount = 10
 				drawRain = !drawRain
-				displayMessage = "Changing environment"
-				displayMessageCount = 100
+				drawMessage("Changing environment", 100, standardFont)
 			case buttonGPSCollision:
 				buttons[2].drawcount = 10
-				displayMessage = satelliteError()
-				displayMessageCount = 100
+				drawMessage(satelliteError(), 100, standardFont)
 			case buttonClearCollision:
 				buttons[3].drawcount = 10
 				clearSprites()
@@ -140,58 +159,85 @@ func run() {
 				currPerson = p
 			case buttonPerson2Collision:
 				currPerson = q
+			case buttonScaleCollision:
+				currScale++
+				if currScale == len(scaleNames) {
+					currScale = 0
+				}
+				drawMessage("Distance scale changed to "+scaleNames[currScale], 100, standardFont)
+				buttons[6].drawcount = 10
 			}
 		}
-		obj := &personP
+		p1 := &personP
+		p2 := &personQ
 		if currPerson == p {
 			walkMap = walkingP
 		} else {
-			obj = &personQ
+			p1 = &personQ
+			p2 = &personP
 			walkMap = walkingQ
 		}
 		if win.JustReleased(pixelgl.KeyTab) {
 			currPerson = !currPerson
 		}
 		if win.Pressed(pixelgl.KeyLeft) || win.Repeated(pixelgl.KeyLeft) {
-			hum := pixel.NewSprite(walkMap[directionLeft][flip].pic, walkMap[directionLeft][flip].frame)
-			hum.Draw(win, obj.mat.Moved(obj.loc))
-			if obj.loc.X > 150 {
-				obj.loc.X -= 3
+			walkMap[directionLeft][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+			if p1.loc.X > 150 {
+				p1.loc.X -= 3
 			}
 		} else if win.Pressed(pixelgl.KeyRight) || win.Repeated(pixelgl.KeyRight) {
-			hum := pixel.NewSprite(walkMap[directionRight][flip].pic, walkMap[directionRight][flip].frame)
-			hum.Draw(win, obj.mat.Moved(obj.loc))
-			if obj.loc.X < maxX-150 {
-				obj.loc.X += 3
+			walkMap[directionRight][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+			if p1.loc.X < maxX-150 {
+				p1.loc.X += 3
 			}
 		} else if win.Pressed(pixelgl.KeyUp) || win.Repeated(pixelgl.KeyUp) {
-			hum := pixel.NewSprite(walkMap[directionUp][flip].pic, walkMap[directionUp][flip].frame)
-			hum.Draw(win, obj.mat.Moved(obj.loc))
-			if obj.loc.Y < 632 {
-				obj.loc.Y += 3
+			walkMap[directionUp][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+			if p1.loc.Y < 632 {
+				p1.loc.Y += 3
 			}
 		} else if win.Pressed(pixelgl.KeyDown) || win.Repeated(pixelgl.KeyDown) {
-			hum := pixel.NewSprite(walkMap[directionDown][flip].pic, walkMap[directionDown][flip].frame)
-			hum.Draw(win, obj.mat.Moved(obj.loc))
-			if obj.loc.Y > 100 {
-				obj.loc.Y -= 3
+			walkMap[directionDown][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+			if p1.loc.Y > 100 {
+				p1.loc.Y -= 3
 			}
 		} else {
-			hum := pixel.NewSprite(obj.pic, obj.frame)
-			hum.Draw(win, obj.mat.Moved(obj.loc))
+			p1.sprite.Draw(win, p1.mat.Moved(p1.loc))
 		}
 		if currPerson == p {
-			hum := pixel.NewSprite(personQ.pic, personQ.frame)
-			hum.Draw(win, personQ.mat.Moved(personQ.loc))
+			walkMap = walkingQ
 		} else {
-			hum := pixel.NewSprite(personP.pic, personP.frame)
-			hum.Draw(win, personP.mat.Moved(personP.loc))
+			walkMap = walkingP
+		}
+		if win.Pressed(pixelgl.KeyA) || win.Repeated(pixelgl.KeyA) {
+			walkMap[directionLeft][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+			if p2.loc.X > 150 {
+				p2.loc.X -= 3
+			}
+		} else if win.Pressed(pixelgl.KeyD) || win.Repeated(pixelgl.KeyD) {
+			walkMap[directionRight][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+			if p2.loc.X < maxX-150 {
+				p2.loc.X += 3
+			}
+		} else if win.Pressed(pixelgl.KeyW) || win.Repeated(pixelgl.KeyW) {
+			walkMap[directionUp][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+			if p2.loc.Y < 632 {
+				p2.loc.Y += 3
+			}
+		} else if win.Pressed(pixelgl.KeyS) || win.Repeated(pixelgl.KeyS) {
+			walkMap[directionDown][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+			if p2.loc.Y > 100 {
+				p2.loc.Y -= 3
+			}
+		} else {
+			p2.sprite.Draw(win, p2.mat.Moved(p2.loc))
 		}
 
-		for i := range buildings {
-			building := pixel.NewSprite(buildings[i].pic, buildings[i].frame)
-			building.Draw(win, buildings[i].mat)
+		buildingBatch.Clear()
+		for i, building := range buildings {
+			buildingSprites[i].Draw(buildingBatch, building.mat)
 		}
+		buildingBatch.Draw(win)
+
 		for i := range buttons {
 			if buttons[i].drawcount == 0 {
 				button := pixel.NewSprite(buttons[i].pic, buttons[i].frame)
@@ -210,22 +256,23 @@ func run() {
 			button.Draw(win, buttons[5].mat)
 		}
 		if displayMessageCount > 0 {
-			basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+			basicAtlas := text.NewAtlas(displayMessageSize, text.ASCII)
 			basicTxt := text.New(pixel.V(maxX/3, maxY-200), basicAtlas)
 			fmt.Fprintln(basicTxt, displayMessage)
 			basicTxt.Draw(win, pixel.IM)
 			displayMessageCount--
 		}
 		if drawRain {
-			for i := range rain {
-				rdrop := pixel.NewSprite(rain[i].pic, rain[i].frame)
-				rdrop.Draw(win, pixel.IM.Moved(pixel.V(rain[i].posX, rain[i].posY)))
+			for i, rdrop := range rainSprites {
+				rain[i].batch.Clear()
+				rdrop.Draw(rain[i].batch, pixel.IM.Moved(pixel.V(rain[i].posX, rain[i].posY)))
+				rain[i].batch.Draw(win)
+
 				if rain[i].posY < maxY/3 {
 					rain[i].posY = maxY
 				} else {
 					rain[i].posY -= 10
 				}
-
 			}
 		}
 		win.Update()
@@ -238,12 +285,13 @@ func run() {
 		case <-second:
 			win.SetTitle(fmt.Sprintf("%s | FPS: %d", cfg.Title, framespersecond))
 			framespersecond = 0
+			distance(personP.loc, personQ.loc)
 		default:
 		}
-
 	}
 }
 
+// Run this from your program to start simulation
 func Run() {
 	pixelgl.Run(run)
 }

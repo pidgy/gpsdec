@@ -28,6 +28,8 @@ var (
 	buttons    []object
 	rain       []object
 
+	buildingBatch *pixel.Batch
+
 	personP object
 	personQ object
 
@@ -37,7 +39,10 @@ var (
 	buildingNames    []string
 	currBuildingName int
 
-	currPerson = p
+	scaleNames []string
+	currScale  int
+
+	currPerson = q
 
 	walkingP map[int][]object
 	walkingQ map[int][]object
@@ -63,6 +68,8 @@ type object struct {
 	filename        string
 	pressedfilename string
 	drawcount       int
+	batch           *pixel.Batch
+	sprite          *pixel.Sprite
 }
 
 func init() {
@@ -74,12 +81,19 @@ func init() {
 		object{posX: maxX - 40, posY: 30, filename: spritedirectory + "button-clear.png", pressedfilename: spritedirectory + "button-pressed-clear.png"},
 		object{posX: maxX - 40, posY: maxY - 100, filename: spritedirectory + "button-person1.png", pressedfilename: spritedirectory + "button-pressed-person1.png"},
 		object{posX: maxX - 40, posY: maxY - 170, filename: spritedirectory + "button-person2.png", pressedfilename: spritedirectory + "button-pressed-person2.png"},
+		object{posX: 285, posY: 30, filename: spritedirectory + "button-scale.png", pressedfilename: spritedirectory + "button-pressed-scale.png"},
 	}
 	satellites = []object{
 		object{posX: 1000, angle: 10, direction: left},
 		object{posX: 20, angle: -0.45, direction: right},
 		object{posX: maxX / 2, angle: -1.5, direction: left},
 	}
+
+	scaleNames = []string{
+		"M",
+		"Km",
+	}
+	currScale = 0
 
 	buildingNames = []string{
 		"Government Building",
@@ -131,11 +145,13 @@ func loadHumanFrames() {
 	personP.frame = sprite1.Bounds()
 	personP.mat = pixel.IM.Scaled(pixel.ZV, 0.3)
 	personP.pic = sprite1
+	personP.sprite = pixel.NewSprite(sprite1, sprite1.Bounds())
 
 	personQ.loc = pixel.V(maxX/1.5, maxY/1.5)
 	personQ.frame = sprite2.Bounds()
 	personQ.mat = pixel.IM.Scaled(pixel.ZV, 0.3)
 	personQ.pic = sprite2
+	personQ.sprite = pixel.NewSprite(sprite2, sprite2.Bounds())
 
 	spriteup1, err := loadPicture(spritedirectory + "person1/person-walking-up1.png")
 	spriteup2, err := loadPicture(spritedirectory + "person1/person-walking-up2.png")
@@ -149,10 +165,10 @@ func loadHumanFrames() {
 		panic(err)
 	}
 	walkingP = map[int][]object{
-		directionLeft:  []object{object{pic: spriteleft1, frame: spriteleft1.Bounds()}, object{pic: spriteleft2, frame: spriteleft2.Bounds()}},
-		directionRight: []object{object{pic: spriteright1, frame: spriteright1.Bounds()}, object{pic: spriteright2, frame: spriteright2.Bounds()}},
-		directionUp:    []object{object{pic: spriteup1, frame: spriteup1.Bounds()}, object{pic: spriteup2, frame: spriteup2.Bounds()}},
-		directionDown:  []object{object{pic: spritedown1, frame: spritedown1.Bounds()}, object{pic: spritedown2, frame: spritedown2.Bounds()}},
+		directionLeft:  []object{object{pic: spriteleft1, frame: spriteleft1.Bounds(), sprite: pixel.NewSprite(spriteleft1, spriteleft1.Bounds())}, object{pic: spriteleft2, frame: spriteleft2.Bounds(), sprite: pixel.NewSprite(spriteleft2, spriteleft2.Bounds())}},
+		directionRight: []object{object{pic: spriteright1, frame: spriteright1.Bounds(), sprite: pixel.NewSprite(spriteright1, spriteright1.Bounds())}, object{pic: spriteright2, frame: spriteright2.Bounds(), sprite: pixel.NewSprite(spriteright2, spriteright2.Bounds())}},
+		directionUp:    []object{object{pic: spriteup1, frame: spriteup1.Bounds(), sprite: pixel.NewSprite(spriteup1, spriteup1.Bounds())}, object{pic: spriteup2, frame: spriteup2.Bounds(), sprite: pixel.NewSprite(spriteup2, spriteup2.Bounds())}},
+		directionDown:  []object{object{pic: spritedown1, frame: spritedown1.Bounds(), sprite: pixel.NewSprite(spritedown1, spritedown1.Bounds())}, object{pic: spritedown2, frame: spritedown2.Bounds(), sprite: pixel.NewSprite(spritedown2, spritedown2.Bounds())}},
 	}
 	spriteup1, err = loadPicture(spritedirectory + "person2/person-walking-up1.png")
 	spriteup2, err = loadPicture(spritedirectory + "person2/person-walking-up2.png")
@@ -166,10 +182,10 @@ func loadHumanFrames() {
 		panic(err)
 	}
 	walkingQ = map[int][]object{
-		directionLeft:  []object{object{pic: spriteleft1, frame: spriteleft1.Bounds()}, object{pic: spriteleft2, frame: spriteleft2.Bounds()}},
-		directionRight: []object{object{pic: spriteright1, frame: spriteright1.Bounds()}, object{pic: spriteright2, frame: spriteright2.Bounds()}},
-		directionUp:    []object{object{pic: spriteup1, frame: spriteup1.Bounds()}, object{pic: spriteup2, frame: spriteup2.Bounds()}},
-		directionDown:  []object{object{pic: spritedown1, frame: spritedown1.Bounds()}, object{pic: spritedown2, frame: spritedown2.Bounds()}},
+		directionLeft:  []object{object{pic: spriteleft1, frame: spriteleft1.Bounds(), sprite: pixel.NewSprite(spriteleft1, spriteleft1.Bounds())}, object{pic: spriteleft2, frame: spriteleft2.Bounds(), sprite: pixel.NewSprite(spriteleft2, spriteleft2.Bounds())}},
+		directionRight: []object{object{pic: spriteright1, frame: spriteright1.Bounds(), sprite: pixel.NewSprite(spriteright1, spriteright1.Bounds())}, object{pic: spriteright2, frame: spriteright2.Bounds(), sprite: pixel.NewSprite(spriteright2, spriteright2.Bounds())}},
+		directionUp:    []object{object{pic: spriteup1, frame: spriteup1.Bounds(), sprite: pixel.NewSprite(spriteup1, spriteup1.Bounds())}, object{pic: spriteup2, frame: spriteup2.Bounds(), sprite: pixel.NewSprite(spriteup2, spriteup2.Bounds())}},
+		directionDown:  []object{object{pic: spritedown1, frame: spritedown1.Bounds(), sprite: pixel.NewSprite(spritedown1, spritedown1.Bounds())}, object{pic: spritedown2, frame: spritedown2.Bounds(), sprite: pixel.NewSprite(spritedown2, spritedown2.Bounds())}},
 	}
 }
 
@@ -179,6 +195,7 @@ func buildingFrames() (pixel.Picture, []pixel.Rect) {
 		panic(err)
 	}
 	var buildingFrames []pixel.Rect
+	buildingBatch = pixel.NewBatch(&pixel.TrianglesData{}, spritesheet)
 
 	buildingFrames = append(buildingFrames, pixel.R(0, 0, 100, 100))    // DC
 	buildingFrames = append(buildingFrames, pixel.R(100, 0, 170, 100))  // Hospital
@@ -204,6 +221,7 @@ func loadRain() {
 	}
 	rain = append(rain, object{
 		frame: sprite.Bounds(),
+		batch: pixel.NewBatch(&pixel.TrianglesData{}, sprite),
 		pic:   sprite,
 		posY:  maxY,
 		posX:  maxX / 2})
