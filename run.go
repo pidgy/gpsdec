@@ -25,11 +25,12 @@ var (
 	selectedButton      int
 	locP                = pixel.V(maxX/2, maxY/2)
 	locQ                = pixel.V(float64(rand.Intn(int(maxX))), float64(rand.Intn(int(maxY))))
-	drawRain            = false
 	numHumans           = 1
 	numButtons          = 4
 	numSatellites       = 3
 	standardFont        = basicfont.Face7x13
+	drawRain            = false
+	drawDistanceLine    = false
 )
 
 func remove(s []message, i int) []message {
@@ -41,7 +42,6 @@ func drawUnits() []*text.Text {
 	j := 0
 	maxYInt := int(maxY)
 	var texts []*text.Text
-	return texts
 	for i := 100; i < maxYInt; i += int(maxYInt / 10) {
 		basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 		basicTxt := text.New(pixel.V(10, float64(i)), basicAtlas)
@@ -68,7 +68,7 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
-
+	units := drawUnits()
 	road, err := loadPicture(spritedirectory + "road.png")
 	if err != nil {
 		panic(err)
@@ -87,13 +87,23 @@ func run() {
 		rainSprites = append(rainSprites, pixel.NewSprite(rain[i].pic, rain[i].frame))
 	}
 
+	loadScreen.sprite.Draw(win, loadScreen.mat)
+	win.Update()
+	load.Wait()
+
 	controlPic, err := loadPicture(spritedirectory + "controls.png")
 	if err != nil {
 		panic(err)
 	}
 	controls := pixel.NewSprite(controlPic, controlPic.Bounds())
 	controls.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
-	for !win.JustReleased(pixelgl.MouseButtonLeft) {
+	for {
+		if win.JustReleased(pixelgl.MouseButtonLeft) {
+			break
+		}
+		if win.JustReleased(pixelgl.KeyEnter) {
+			break
+		}
 		time.Sleep(1000)
 		win.Update()
 	}
@@ -160,14 +170,21 @@ func run() {
 			case buttonPerson2Collision:
 				currPerson = q
 			case buttonScaleCollision:
+				buttons[6].drawcount = 10
 				currScale++
 				if currScale == len(scaleNames) {
 					currScale = 0
 				}
 				drawMessage("Distance scale changed to "+scaleNames[currScale], 100, standardFont)
-				buttons[6].drawcount = 10
+			case buttonLineCollision:
+				buttons[7].drawcount = 10
+				drawDistanceLine = !drawDistanceLine
+				if drawDistanceLine {
+					drawMessage("Showing distance line", 100, standardFont)
+				}
 			}
 		}
+
 		p1 := &personP
 		p2 := &personQ
 		if currPerson == p {
@@ -231,6 +248,46 @@ func run() {
 		} else {
 			p2.sprite.Draw(win, p2.mat.Moved(p2.loc))
 		}
+		if !drawDistanceLine {
+			x, y := distance(personP.loc, personQ.loc)
+			angleLen := angleLength(x, y)
+			angle := distanceAngle(x, y, personP, personQ)
+			distanceLine.mat = pixel.IM.ScaledXY(pixel.ZV, pixel.V(angleLen, 1)).Moved(pixel.V(personP.loc.X+angleLen*100, personP.loc.Y)).Rotated(pixel.V(personP.loc.X, personP.loc.Y), angle)
+			distanceLine.sprite.Draw(win, distanceLine.mat)
+		}
+		for _, u := range units {
+			u.Draw(win, pixel.IM)
+		}
+
+		basicAtlas := text.NewAtlas(standardFont, text.ASCII)
+		basicTxt := text.New(pixel.V(personQ.loc.X, personQ.loc.Y), basicAtlas)
+		fmt.Fprintln(basicTxt, fmt.Sprintf("  [%f|%f]", personQ.loc.X, personQ.loc.Y))
+		basicTxt.Draw(win, pixel.IM)
+
+		basicAtlas = text.NewAtlas(standardFont, text.ASCII)
+		basicTxt = text.New(pixel.V(personP.loc.X, personP.loc.Y), basicAtlas)
+		fmt.Fprintln(basicTxt, fmt.Sprintf("  [%f|%f]", personP.loc.X, personP.loc.Y))
+		basicTxt.Draw(win, pixel.IM)
+
+		if win.JustReleased(pixelgl.KeyL) {
+			buttons[7].drawcount = 10
+			drawDistanceLine = !drawDistanceLine
+			if drawDistanceLine {
+				drawMessage("Showing distance line", 100, standardFont)
+			}
+		}
+
+		if win.JustReleased(pixelgl.KeyEnter) {
+			println(int(personP.loc.X), int(personP.loc.Y))
+			println(int(personQ.loc.X), int(personQ.loc.Y))
+			x, y := distance(personP.loc, personQ.loc)
+			println("X distance:", x)
+			println("Y distance:", y)
+			println("angle distance:", distanceAngle(x, y, personP, personQ))
+
+			println(fmt.Sprintf("%f,%f,%f", distanceAngle(x, y, personP, personQ), x, y))
+
+		}
 
 		buildingBatch.Clear()
 		for i, building := range buildings {
@@ -255,6 +312,7 @@ func run() {
 			button := pixel.NewSprite(buttons[5].pressedpic, buttons[5].frame)
 			button.Draw(win, buttons[5].mat)
 		}
+
 		if displayMessageCount > 0 {
 			basicAtlas := text.NewAtlas(displayMessageSize, text.ASCII)
 			basicTxt := text.New(pixel.V(maxX/3, maxY-200), basicAtlas)
@@ -285,7 +343,6 @@ func run() {
 		case <-second:
 			win.SetTitle(fmt.Sprintf("%s | FPS: %d", cfg.Title, framespersecond))
 			framespersecond = 0
-			distance(personP.loc, personQ.loc)
 		default:
 		}
 	}

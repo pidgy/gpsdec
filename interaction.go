@@ -12,6 +12,7 @@ const (
 	buttonWeatherCollision
 	buttonGPSCollision
 	buttonScaleCollision
+	buttonLineCollision
 	buttonClearCollision
 	buttonPerson1Collision
 	buttonPerson2Collision
@@ -59,9 +60,14 @@ func whereClick(loc pixel.Vec) int {
 			return buttonClearCollision
 		}
 	}
-	if loc.X < buttons[6].posX+buttons[6].frame.W() && loc.X > buttons[6].posX-buttons[6].frame.W()/2 {
+	if loc.X < buttons[6].posX+buttons[6].frame.W() && loc.X > (buttons[6].posX-buttons[6].frame.W()/2)-20 {
 		if loc.Y < buttons[6].posY+buttons[6].frame.H() {
 			return buttonScaleCollision
+		}
+	}
+	if loc.X < buttons[7].posX+buttons[7].frame.W() && loc.X > buttons[7].posX-buttons[7].frame.W()/2 {
+		if loc.Y < buttons[7].posY+buttons[7].frame.H() {
+			return buttonLineCollision
 		}
 	}
 

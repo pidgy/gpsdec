@@ -3,6 +3,7 @@ package gpsdec
 import (
 	"image"
 	"os"
+	"sync"
 
 	"github.com/faiface/pixel"
 )
@@ -30,8 +31,10 @@ var (
 
 	buildingBatch *pixel.Batch
 
-	personP object
-	personQ object
+	personP      object
+	personQ      object
+	distanceLine object
+	loadScreen   object
 
 	buildPic    pixel.Picture
 	buildFrames []pixel.Rect
@@ -46,6 +49,8 @@ var (
 
 	walkingP map[int][]object
 	walkingQ map[int][]object
+
+	load sync.WaitGroup
 )
 
 type message struct {
@@ -73,6 +78,20 @@ type object struct {
 }
 
 func init() {
+	loadingPic, err := loadPicture(spritedirectory + "loadscreen.png")
+	if err != nil {
+		panic(err)
+	}
+	loadScreen = object{
+		pic:    loadingPic,
+		sprite: pixel.NewSprite(loadingPic, loadingPic.Bounds()),
+		mat:    pixel.IM.Moved(pixel.V(maxX/2, maxY/2)),
+	}
+	load.Add(1)
+	go loadAllTheThings()
+}
+
+func loadAllTheThings() {
 	buildPic, buildFrames = buildingFrames()
 	buttons = []object{
 		object{posX: 40, posY: 30, filename: spritedirectory + "button-buildings.png", pressedfilename: spritedirectory + "button-pressed-buildings.png"},
@@ -82,6 +101,7 @@ func init() {
 		object{posX: maxX - 40, posY: maxY - 100, filename: spritedirectory + "button-person1.png", pressedfilename: spritedirectory + "button-pressed-person1.png"},
 		object{posX: maxX - 40, posY: maxY - 170, filename: spritedirectory + "button-person2.png", pressedfilename: spritedirectory + "button-pressed-person2.png"},
 		object{posX: 285, posY: 30, filename: spritedirectory + "button-scale.png", pressedfilename: spritedirectory + "button-pressed-scale.png"},
+		object{posX: 372, posY: 30, filename: spritedirectory + "button-line.png", pressedfilename: spritedirectory + "button-pressed-line.png"},
 	}
 	satellites = []object{
 		object{posX: 1000, angle: 10, direction: left},
@@ -112,13 +132,16 @@ func init() {
 	}
 	loadSatelliteFrames()
 	loadButtonFrames()
-	loadHumanFrames()
+	loadHumans()
 	loadRain()
+	loadDistanceLine()
+	load.Done()
 }
 
 func clearSprites() {
 	buildings = []object{}
 	drawRain = false
+	drawDistanceLine = false
 }
 
 func loadPicture(path string) (pixel.Picture, error) {
@@ -134,20 +157,30 @@ func loadPicture(path string) (pixel.Picture, error) {
 	return pixel.PictureDataFromImage(img), nil
 }
 
-func loadHumanFrames() {
-	sprite1, err := loadPicture(spritedirectory + "person1/person-standing.png")
-	sprite2, err := loadPicture(spritedirectory + "person2/person-standing.png")
-
+func loadDistanceLine() {
+	sprite, err := loadPicture(spritedirectory + "distance-line.png")
 	if err != nil {
 		panic(err)
 	}
-	personP.loc = pixel.V(maxX/2, maxY/2)
+	distanceLine = object{
+		pic:    sprite,
+		sprite: pixel.NewSprite(sprite, sprite.Bounds()),
+	}
+}
+
+func loadHumans() {
+	sprite1, err := loadPicture(spritedirectory + "person1/person-standing.png")
+	sprite2, err := loadPicture(spritedirectory + "person2/person-standing.png")
+	if err != nil {
+		panic(err)
+	}
+	personP.loc = pixel.V(maxX/3, maxY/2)
 	personP.frame = sprite1.Bounds()
 	personP.mat = pixel.IM.Scaled(pixel.ZV, 0.3)
 	personP.pic = sprite1
 	personP.sprite = pixel.NewSprite(sprite1, sprite1.Bounds())
 
-	personQ.loc = pixel.V(maxX/1.5, maxY/1.5)
+	personQ.loc = pixel.V(maxX/1.5, maxY/2)
 	personQ.frame = sprite2.Bounds()
 	personQ.mat = pixel.IM.Scaled(pixel.ZV, 0.3)
 	personQ.pic = sprite2

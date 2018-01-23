@@ -1,23 +1,31 @@
 package gpsdec
 
 import (
+	"math"
+
 	"github.com/faiface/pixel"
 )
 
-func distance(p, q pixel.Vec) {
-	xdiff := 0.0
-	ydiff := 0.0
+func distance(p, q pixel.Vec) (float64, float64) {
+	return (personP.loc.X - personQ.loc.X), (personP.loc.Y - personQ.loc.Y)
+}
 
-	if p.X > q.X {
-		xdiff = p.X - q.X
-	} else {
-		xdiff = q.X - p.X
-	}
-	if p.Y > q.Y {
-		ydiff = p.Y - q.Y
-	} else {
-		ydiff = q.Y - p.Y
-	}
+func distanceAngle(x, y float64, p, q object) float64 {
+	tan := math.Tan(y / x)
+	arctan := math.Atan(tan)
+	return arctan
+}
 
-	println("X diff:", int(xdiff), "Y diff:", int(ydiff))
+func angleLength(x, y float64) float64 {
+	var pyth float64
+	if y == 0 {
+		pyth = (x + y) / 200
+		return -pyth
+	}
+	pyth = x*x + y*y
+	pyth = math.Sqrt(pyth)
+	if y < x {
+		return -pyth / 200
+	}
+	return pyth / 200
 }
