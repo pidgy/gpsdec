@@ -9,18 +9,30 @@ import (
 )
 
 const (
-	maxX            float64 = 1024
-	maxY            float64 = 768
-	left            bool    = true
-	right           bool    = false
-	p               bool    = true
-	q               bool    = false
-	spritedirectory string  = "gpsdec/pics/"
+	maxX                float64 = 1024
+	maxY                float64 = 768
+	left                bool    = true
+	right               bool    = false
+	p                   bool    = true
+	q                   bool    = false
+	spritedirectory     string  = "gpsdec/pics/"
+	backgrounddirectory string  = "background/"
+	buttonsdirectory    string  = "buttons/"
+	objectsdirectory    string  = "objects/"
+	pdirectory          string  = "person1/"
+	qdirectory          string  = "person2/"
+	imgtestdirectory    string  = "tests/"
 
 	directionLeft = iota
 	directionRight
 	directionUp
 	directionDown
+
+	maxSpriteX = maxX - 5
+	minSpriteX = 5
+	maxSpriteY = 381
+	minSpriteY = 100
+	walkSpeed  = 3
 )
 
 var (
@@ -35,6 +47,8 @@ var (
 	personQ      object
 	distanceLine object
 	loadScreen   object
+
+	background object
 
 	buildPic    pixel.Picture
 	buildFrames []pixel.Rect
@@ -94,14 +108,14 @@ func init() {
 func loadAllTheThings() {
 	buildPic, buildFrames = buildingFrames()
 	buttons = []object{
-		object{posX: 40, posY: 30, filename: spritedirectory + "button-buildings.png", pressedfilename: spritedirectory + "button-pressed-buildings.png"},
-		object{posX: 120, posY: 30, filename: spritedirectory + "button-weather.png", pressedfilename: spritedirectory + "button-pressed-weather.png"},
-		object{posX: 200, posY: 30, filename: spritedirectory + "button-gps.png", pressedfilename: spritedirectory + "button-pressed-gps.png"},
-		object{posX: maxX - 40, posY: 30, filename: spritedirectory + "button-clear.png", pressedfilename: spritedirectory + "button-pressed-clear.png"},
-		object{posX: maxX - 40, posY: maxY - 100, filename: spritedirectory + "button-person1.png", pressedfilename: spritedirectory + "button-pressed-person1.png"},
-		object{posX: maxX - 40, posY: maxY - 170, filename: spritedirectory + "button-person2.png", pressedfilename: spritedirectory + "button-pressed-person2.png"},
-		object{posX: 285, posY: 30, filename: spritedirectory + "button-scale.png", pressedfilename: spritedirectory + "button-pressed-scale.png"},
-		object{posX: 372, posY: 30, filename: spritedirectory + "button-line.png", pressedfilename: spritedirectory + "button-pressed-line.png"},
+		object{posX: 40, posY: 30, filename: spritedirectory + buttonsdirectory + "button-buildings.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-buildings.png"},
+		object{posX: 120, posY: 30, filename: spritedirectory + buttonsdirectory + "button-weather.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-weather.png"},
+		object{posX: 200, posY: 30, filename: spritedirectory + buttonsdirectory + "button-gps.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-gps.png"},
+		object{posX: maxX - 40, posY: 30, filename: spritedirectory + buttonsdirectory + "button-clear.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-clear.png"},
+		object{posX: maxX - 40, posY: maxY - 100, filename: spritedirectory + buttonsdirectory + "button-person1.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-person1.png"},
+		object{posX: maxX - 40, posY: maxY - 170, filename: spritedirectory + buttonsdirectory + "button-person2.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-person2.png"},
+		object{posX: 285, posY: 30, filename: spritedirectory + buttonsdirectory + "button-scale.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-scale.png"},
+		object{posX: 372, posY: 30, filename: spritedirectory + buttonsdirectory + "button-line.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-line.png"},
 	}
 	satellites = []object{
 		object{posX: 1000, angle: 10, direction: left},
@@ -130,6 +144,7 @@ func loadAllTheThings() {
 		"Skyscraper 7",
 		"Skyscraper 8",
 	}
+	loadBackground()
 	loadSatelliteFrames()
 	loadButtonFrames()
 	loadHumans()
@@ -158,7 +173,7 @@ func loadPicture(path string) (pixel.Picture, error) {
 }
 
 func loadDistanceLine() {
-	sprite, err := loadPicture(spritedirectory + "distance-line.png")
+	sprite, err := loadPicture(spritedirectory + objectsdirectory + "distance-line.png")
 	if err != nil {
 		panic(err)
 	}
@@ -169,31 +184,31 @@ func loadDistanceLine() {
 }
 
 func loadHumans() {
-	sprite1, err := loadPicture(spritedirectory + "person1/person-standing.png")
-	sprite2, err := loadPicture(spritedirectory + "person2/person-standing.png")
+	sprite1, err := loadPicture(spritedirectory + imgtestdirectory + "person-standing.png")
+	sprite2, err := loadPicture(spritedirectory + imgtestdirectory + "person2-standing.png")
 	if err != nil {
 		panic(err)
 	}
-	personP.loc = pixel.V(maxX/3, maxY/2)
+	personP.loc = pixel.V(341, 99)
 	personP.frame = sprite1.Bounds()
 	personP.mat = pixel.IM.Scaled(pixel.ZV, 0.3)
 	personP.pic = sprite1
 	personP.sprite = pixel.NewSprite(sprite1, sprite1.Bounds())
 
-	personQ.loc = pixel.V(maxX/1.5, maxY/2)
+	personQ.loc = pixel.V(682, 99)
 	personQ.frame = sprite2.Bounds()
 	personQ.mat = pixel.IM.Scaled(pixel.ZV, 0.3)
 	personQ.pic = sprite2
 	personQ.sprite = pixel.NewSprite(sprite2, sprite2.Bounds())
 
-	spriteup1, err := loadPicture(spritedirectory + "person1/person-walking-up1.png")
-	spriteup2, err := loadPicture(spritedirectory + "person1/person-walking-up2.png")
-	spritedown1, err := loadPicture(spritedirectory + "person1/person-walking-down1.png")
-	spritedown2, err := loadPicture(spritedirectory + "person1/person-walking-down2.png")
-	spriteleft1, err := loadPicture(spritedirectory + "person1/person-walking-left1.png")
-	spriteleft2, err := loadPicture(spritedirectory + "person1/person-walking-left2.png")
-	spriteright1, err := loadPicture(spritedirectory + "person1/person-walking-right1.png")
-	spriteright2, err := loadPicture(spritedirectory + "person1/person-walking-right2.png")
+	spriteup1, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-up1.png")
+	spriteup2, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-up2.png")
+	spritedown1, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-down1.png")
+	spritedown2, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-down2.png")
+	spriteleft1, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-left1.png")
+	spriteleft2, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-left2.png")
+	spriteright1, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-right1.png")
+	spriteright2, err := loadPicture(spritedirectory + imgtestdirectory + "person-walking-right2.png")
 	if err != nil {
 		panic(err)
 	}
@@ -203,14 +218,14 @@ func loadHumans() {
 		directionUp:    []object{object{pic: spriteup1, frame: spriteup1.Bounds(), sprite: pixel.NewSprite(spriteup1, spriteup1.Bounds())}, object{pic: spriteup2, frame: spriteup2.Bounds(), sprite: pixel.NewSprite(spriteup2, spriteup2.Bounds())}},
 		directionDown:  []object{object{pic: spritedown1, frame: spritedown1.Bounds(), sprite: pixel.NewSprite(spritedown1, spritedown1.Bounds())}, object{pic: spritedown2, frame: spritedown2.Bounds(), sprite: pixel.NewSprite(spritedown2, spritedown2.Bounds())}},
 	}
-	spriteup1, err = loadPicture(spritedirectory + "person2/person-walking-up1.png")
-	spriteup2, err = loadPicture(spritedirectory + "person2/person-walking-up2.png")
-	spritedown1, err = loadPicture(spritedirectory + "person2/person-walking-down1.png")
-	spritedown2, err = loadPicture(spritedirectory + "person2/person-walking-down2.png")
-	spriteleft1, err = loadPicture(spritedirectory + "person2/person-walking-left1.png")
-	spriteleft2, err = loadPicture(spritedirectory + "person2/person-walking-left2.png")
-	spriteright1, err = loadPicture(spritedirectory + "person2/person-walking-right1.png")
-	spriteright2, err = loadPicture(spritedirectory + "person2/person-walking-right2.png")
+	spriteup1, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-up1.png")
+	spriteup2, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-up2.png")
+	spritedown1, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-down1.png")
+	spritedown2, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-down2.png")
+	spriteleft1, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-left1.png")
+	spriteleft2, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-left2.png")
+	spriteright1, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-right1.png")
+	spriteright2, err = loadPicture(spritedirectory + imgtestdirectory + "person2-walking-right2.png")
 	if err != nil {
 		panic(err)
 	}
@@ -248,7 +263,7 @@ func buildingFrames() (pixel.Picture, []pixel.Rect) {
 }
 
 func loadRain() {
-	sprite, err := loadPicture(spritedirectory + "raining_tr.png")
+	sprite, err := loadPicture(spritedirectory + objectsdirectory + "raining-tr.png")
 	if err != nil {
 		panic(err)
 	}
@@ -258,6 +273,21 @@ func loadRain() {
 		pic:   sprite,
 		posY:  maxY,
 		posX:  maxX / 2})
+}
+
+func loadBackground() {
+	sprite, err := loadPicture(spritedirectory + backgrounddirectory + "bg-ottawa.png")
+	if err != nil {
+		panic(err)
+	}
+	background = object{
+		frame:  sprite.Bounds(),
+		batch:  pixel.NewBatch(&pixel.TrianglesData{}, sprite),
+		pic:    sprite,
+		sprite: pixel.NewSprite(sprite, sprite.Bounds()),
+		posY:   maxY / 2,
+		posX:   maxX / 2,
+	}
 }
 
 func loadButtonFrames() {
@@ -275,7 +305,7 @@ func loadButtonFrames() {
 }
 
 func loadSatelliteFrames() {
-	sprite, err := loadPicture(spritedirectory + "satellite-pixel.png")
+	sprite, err := loadPicture(spritedirectory + objectsdirectory + "satellite-pixel.png")
 	if err != nil {
 		panic(err)
 	}

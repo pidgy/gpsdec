@@ -13,7 +13,7 @@ func distance(p, q pixel.Vec) (float64, float64) {
 func distanceAngle(x, y float64, p, q object) float64 {
 	tan := math.Tan(y / x)
 	arctan := math.Atan(tan)
-	return arctan
+	return arctan * (math.Pi / 180)
 }
 
 func angleLength(x, y float64) float64 {

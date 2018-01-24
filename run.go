@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/faiface/pixel"
+	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
 	"golang.org/x/image/colornames"
@@ -68,12 +69,7 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
-	units := drawUnits()
-	road, err := loadPicture(spritedirectory + "road.png")
-	if err != nil {
-		panic(err)
-	}
-	win.Clear(colornames.Skyblue)
+	win.Clear(colornames.Blue)
 
 	satelliteAngle := 0.0
 	last := time.Now()
@@ -111,8 +107,8 @@ func run() {
 	for !win.Closed() {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
-		win.Clear(colornames.Skyblue)
-
+		win.Clear(colornames.Blue)
+		background.sprite.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
 		// Draw the satellites
 		satelliteAngle += 2 * dt
 		for i := 0; i < numSatellites; i++ {
@@ -131,11 +127,6 @@ func run() {
 			sat := pixel.NewSprite(satellites[i].pic, satellites[i].frame)
 			sat.Draw(win, mat)
 		}
-		// Draw a road under the person
-		roadPix := pixel.NewSprite(road, road.Bounds())
-		roadPix.Draw(win, pixel.IM.Scaled(pixel.ZV, 0.5).Moved(pixel.V(win.Bounds().Max.X/2, (win.Bounds().Max.Y/2)-50)))
-		roadPix.Draw(win, pixel.IM.Scaled(pixel.ZV, 0.5).Moved(pixel.V(0, (win.Bounds().Max.Y/2)-50)))
-		roadPix.Draw(win, pixel.IM.Scaled(pixel.ZV, 0.5).Moved(pixel.V(win.Bounds().Max.X, (win.Bounds().Max.Y/2)-50)))
 
 		if win.JustPressed(pixelgl.MouseButtonLeft) {
 			switch whereClick(win.MousePosition()) {
@@ -184,7 +175,6 @@ func run() {
 				}
 			}
 		}
-
 		p1 := &personP
 		p2 := &personQ
 		if currPerson == p {
@@ -199,23 +189,23 @@ func run() {
 		}
 		if win.Pressed(pixelgl.KeyLeft) || win.Repeated(pixelgl.KeyLeft) {
 			walkMap[directionLeft][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
-			if p1.loc.X > 150 {
-				p1.loc.X -= 3
+			if p1.loc.X > minSpriteX {
+				p1.loc.X -= walkSpeed
 			}
 		} else if win.Pressed(pixelgl.KeyRight) || win.Repeated(pixelgl.KeyRight) {
 			walkMap[directionRight][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
-			if p1.loc.X < maxX-150 {
-				p1.loc.X += 3
+			if p1.loc.X < maxSpriteX {
+				p1.loc.X += walkSpeed
 			}
 		} else if win.Pressed(pixelgl.KeyUp) || win.Repeated(pixelgl.KeyUp) {
 			walkMap[directionUp][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
-			if p1.loc.Y < 632 {
-				p1.loc.Y += 3
+			if p1.loc.Y < maxSpriteY {
+				p1.loc.Y += walkSpeed
 			}
 		} else if win.Pressed(pixelgl.KeyDown) || win.Repeated(pixelgl.KeyDown) {
 			walkMap[directionDown][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
-			if p1.loc.Y > 100 {
-				p1.loc.Y -= 3
+			if p1.loc.Y > minSpriteY {
+				p1.loc.Y -= walkSpeed
 			}
 		} else {
 			p1.sprite.Draw(win, p1.mat.Moved(p1.loc))
@@ -227,66 +217,48 @@ func run() {
 		}
 		if win.Pressed(pixelgl.KeyA) || win.Repeated(pixelgl.KeyA) {
 			walkMap[directionLeft][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
-			if p2.loc.X > 150 {
-				p2.loc.X -= 3
+			if p2.loc.X > minSpriteX {
+				p2.loc.X -= walkSpeed
 			}
 		} else if win.Pressed(pixelgl.KeyD) || win.Repeated(pixelgl.KeyD) {
 			walkMap[directionRight][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
-			if p2.loc.X < maxX-150 {
-				p2.loc.X += 3
+			if p2.loc.X < maxSpriteX {
+				p2.loc.X += walkSpeed
 			}
 		} else if win.Pressed(pixelgl.KeyW) || win.Repeated(pixelgl.KeyW) {
 			walkMap[directionUp][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
-			if p2.loc.Y < 632 {
-				p2.loc.Y += 3
+			if p2.loc.Y < maxSpriteY {
+				p2.loc.Y += walkSpeed
 			}
 		} else if win.Pressed(pixelgl.KeyS) || win.Repeated(pixelgl.KeyS) {
 			walkMap[directionDown][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
-			if p2.loc.Y > 100 {
-				p2.loc.Y -= 3
+			if p2.loc.Y > minSpriteY {
+				p2.loc.Y -= walkSpeed
 			}
 		} else {
 			p2.sprite.Draw(win, p2.mat.Moved(p2.loc))
 		}
-		if !drawDistanceLine {
+		if drawDistanceLine {
 			x, y := distance(personP.loc, personQ.loc)
 			angleLen := angleLength(x, y)
-			angle := distanceAngle(x, y, personP, personQ)
-			distanceLine.mat = pixel.IM.ScaledXY(pixel.ZV, pixel.V(angleLen, 1)).Moved(pixel.V(personP.loc.X+angleLen*100, personP.loc.Y)).Rotated(pixel.V(personP.loc.X, personP.loc.Y), angle)
-			distanceLine.sprite.Draw(win, distanceLine.mat)
+			imd := imdraw.New(nil)
+			imd.Color = colornames.Red
+			imd.EndShape = imdraw.RoundEndShape
+			imd.Push(pixel.V(personP.loc.X, personP.loc.Y), pixel.V(personQ.loc.X, personQ.loc.Y))
+			imd.EndShape = imdraw.SharpEndShape
+			imd.Line(1)
+			imd.Draw(win)
+			basicAtlas := text.NewAtlas(standardFont, text.ASCII)
+			basicTxt := text.New(win.Bounds().Center(), basicAtlas)
+			fmt.Fprintln(basicTxt, fmt.Sprintf("%f", angleLen))
+			basicTxt.Draw(win, pixel.IM)
 		}
-		for _, u := range units {
-			u.Draw(win, pixel.IM)
-		}
-
-		basicAtlas := text.NewAtlas(standardFont, text.ASCII)
-		basicTxt := text.New(pixel.V(personQ.loc.X, personQ.loc.Y), basicAtlas)
-		fmt.Fprintln(basicTxt, fmt.Sprintf("  [%f|%f]", personQ.loc.X, personQ.loc.Y))
-		basicTxt.Draw(win, pixel.IM)
-
-		basicAtlas = text.NewAtlas(standardFont, text.ASCII)
-		basicTxt = text.New(pixel.V(personP.loc.X, personP.loc.Y), basicAtlas)
-		fmt.Fprintln(basicTxt, fmt.Sprintf("  [%f|%f]", personP.loc.X, personP.loc.Y))
-		basicTxt.Draw(win, pixel.IM)
-
 		if win.JustReleased(pixelgl.KeyL) {
 			buttons[7].drawcount = 10
 			drawDistanceLine = !drawDistanceLine
 			if drawDistanceLine {
 				drawMessage("Showing distance line", 100, standardFont)
 			}
-		}
-
-		if win.JustReleased(pixelgl.KeyEnter) {
-			println(int(personP.loc.X), int(personP.loc.Y))
-			println(int(personQ.loc.X), int(personQ.loc.Y))
-			x, y := distance(personP.loc, personQ.loc)
-			println("X distance:", x)
-			println("Y distance:", y)
-			println("angle distance:", distanceAngle(x, y, personP, personQ))
-
-			println(fmt.Sprintf("%f,%f,%f", distanceAngle(x, y, personP, personQ), x, y))
-
 		}
 
 		buildingBatch.Clear()
