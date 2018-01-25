@@ -28,35 +28,15 @@ var (
 	locQ                = pixel.V(float64(rand.Intn(int(maxX))), float64(rand.Intn(int(maxY))))
 	numHumans           = 1
 	numButtons          = 4
-	numSatellites       = 3
 	standardFont        = basicfont.Face7x13
 	drawRain            = false
 	drawDistanceLine    = false
+	last                = time.Now()
 )
 
 func remove(s []message, i int) []message {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
-}
-
-func drawUnits() []*text.Text {
-	j := 0
-	maxYInt := int(maxY)
-	var texts []*text.Text
-	for i := 100; i < maxYInt; i += int(maxYInt / 10) {
-		basicAtlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
-		basicTxt := text.New(pixel.V(10, float64(i)), basicAtlas)
-		fmt.Fprintln(basicTxt, fmt.Sprintf("-----= %d", i))
-		texts = append(texts, basicTxt)
-		j++
-	}
-	return texts
-}
-
-func drawMessage(m string, c int, s *basicfont.Face) {
-	displayMessage = m
-	displayMessageCount = c
-	displayMessageSize = s
 }
 
 func run() {
@@ -71,17 +51,7 @@ func run() {
 	}
 	win.Clear(colornames.Blue)
 
-	satelliteAngle := 0.0
-	last := time.Now()
 	flip := 0
-
-	var walkMap map[int][]object
-	var rainSprites []*pixel.Sprite
-	var buildingSprites []*pixel.Sprite
-
-	for i := range rain {
-		rainSprites = append(rainSprites, pixel.NewSprite(rain[i].pic, rain[i].frame))
-	}
 
 	loadScreen.sprite.Draw(win, loadScreen.mat)
 	win.Update()
@@ -92,89 +62,35 @@ func run() {
 		panic(err)
 	}
 	controls := pixel.NewSprite(controlPic, controlPic.Bounds())
-	controls.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
+	var loadSats [][]object
+	i := 0
+	for i < 2 {
+		loadSats = append(loadSats, scramblePositions(satellites))
+		i++
+	}
 	for {
+		controls.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
+		if win.Closed() {
+			goto exit
+		}
 		if win.JustReleased(pixelgl.MouseButtonLeft) {
 			break
 		}
 		if win.JustReleased(pixelgl.KeyEnter) {
 			break
 		}
-		time.Sleep(1000)
+		for _, l := range loadSats {
+			drawRandom(win, l, 2)
+		}
 		win.Update()
 	}
 
 	for !win.Closed() {
-		dt := time.Since(last).Seconds()
-		last = time.Now()
 		win.Clear(colornames.Blue)
 		background.sprite.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
-		// Draw the satellites
-		satelliteAngle += 2 * dt
-		for i := 0; i < numSatellites; i++ {
-			mat := pixel.IM
-			mat = mat.Scaled(pixel.ZV, 0.1).Rotated(pixel.ZV, satelliteAngle)
-			if satellites[i].posX == 1 || satellites[i].posX == maxX-1 {
-				satellites[i].direction = !satellites[i].direction
-			}
-			if satellites[i].direction == left {
-				satellites[i].posX--
-			}
-			if satellites[i].direction == right {
-				satellites[i].posX++
-			}
-			mat = mat.Moved(pixel.V(satellites[i].posX, 740))
-			sat := pixel.NewSprite(satellites[i].pic, satellites[i].frame)
-			sat.Draw(win, mat)
-		}
 
-		if win.JustPressed(pixelgl.MouseButtonLeft) {
-			switch whereClick(win.MousePosition()) {
-			case noCollision:
-				f := buildFrames[currBuildingName]
-				building := pixel.NewSprite(buildPic, f)
-				buildingSprites = append(buildingSprites, building)
-				buildings = append(buildings, object{
-					pic:   buildPic,
-					posX:  win.MousePosition().X - f.W()/2,
-					posY:  win.MousePosition().Y - f.H()/2,
-					frame: f,
-					mat:   pixel.IM.Moved(win.MousePosition())})
-			case buildingCollision:
-				drawMessage("Cannot place a building on top of another building!", 100, standardFont)
-			case buttonBuildingCollision:
-				currBuildingName = (currBuildingName + 1) % len(buildFrames)
-				drawMessage(buildingNames[currBuildingName]+" Selected", 100, standardFont)
-				buttons[0].drawcount = 10
-			case buttonWeatherCollision:
-				buttons[1].drawcount = 10
-				drawRain = !drawRain
-				drawMessage("Changing environment", 100, standardFont)
-			case buttonGPSCollision:
-				buttons[2].drawcount = 10
-				drawMessage(satelliteError(), 100, standardFont)
-			case buttonClearCollision:
-				buttons[3].drawcount = 10
-				clearSprites()
-			case buttonPerson1Collision:
-				currPerson = p
-			case buttonPerson2Collision:
-				currPerson = q
-			case buttonScaleCollision:
-				buttons[6].drawcount = 10
-				currScale++
-				if currScale == len(scaleNames) {
-					currScale = 0
-				}
-				drawMessage("Distance scale changed to "+scaleNames[currScale], 100, standardFont)
-			case buttonLineCollision:
-				buttons[7].drawcount = 10
-				drawDistanceLine = !drawDistanceLine
-				if drawDistanceLine {
-					drawMessage("Showing distance line", 100, standardFont)
-				}
-			}
-		}
+		drawSatellites(win)
+		handleLeftClick(win)
 		p1 := &personP
 		p2 := &personQ
 		if currPerson == p {
@@ -250,7 +166,7 @@ func run() {
 			imd.Draw(win)
 			basicAtlas := text.NewAtlas(standardFont, text.ASCII)
 			basicTxt := text.New(win.Bounds().Center(), basicAtlas)
-			fmt.Fprintln(basicTxt, fmt.Sprintf("%f", angleLen))
+			fmt.Fprintln(basicTxt, fmt.Sprintf("%.2f %s", angleLen*1000, scaleNames[currScale]))
 			basicTxt.Draw(win, pixel.IM)
 		}
 		if win.JustReleased(pixelgl.KeyL) {
@@ -318,6 +234,7 @@ func run() {
 		default:
 		}
 	}
+exit:
 }
 
 // Run this from your program to start simulation
