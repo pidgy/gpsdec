@@ -16,16 +16,9 @@ func distanceAngle(x, y float64, p, q object) float64 {
 	return arctan * (math.Pi / 180)
 }
 
-func angleLength(x, y float64) float64 {
+func distanceAngleLength(x, y float64) float64 {
 	var pyth float64
-	if y == 0 {
-		pyth = (x + y) / 200
-		return -pyth
-	}
 	pyth = x*x + y*y
 	pyth = math.Sqrt(pyth)
-	if y < x {
-		return -pyth / 200
-	}
-	return pyth / 200
+	return pyth
 }
