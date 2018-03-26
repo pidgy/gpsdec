@@ -6,6 +6,22 @@ import (
 	"github.com/faiface/pixel"
 )
 
+const (
+	SCALE_M = iota
+	SCALE_KM
+)
+
+var (
+	scaleNames [2]string
+	currScale  int
+)
+
+func init() {
+	scaleNames[SCALE_M] = "M"
+	scaleNames[SCALE_KM] = "Km"
+	currScale = SCALE_M
+}
+
 func distance(p, q pixel.Vec) (float64, float64) {
 	return (personP.loc.X - personQ.loc.X), (personP.loc.Y - personQ.loc.Y)
 }

@@ -19,11 +19,12 @@ const (
 	buttonPerson2Collision
 	buttonControlsCollision
 	buttonRunCollision
+	buttonEstimateCollision
+	buttonTipCollision
 )
 
 var (
 	currSatelliteError = 1
-	flip               = 0
 )
 
 func whereClick(loc pixel.Vec) int {
@@ -56,6 +57,16 @@ func whereClick(loc pixel.Vec) int {
 	if loc.X < buttons[9].posX+buttons[9].frame.W() && loc.X > buttons[9].posX-buttons[9].frame.W()/2 {
 		if loc.Y < buttons[9].posY+buttons[9].frame.H() {
 			return buttonRunCollision
+		}
+	}
+	if loc.X < buttons[10].posX+buttons[10].frame.W() && loc.X > buttons[10].posX-buttons[10].frame.W()/2 {
+		if loc.Y < buttons[10].posY+buttons[10].frame.H() {
+			return buttonEstimateCollision
+		}
+	}
+	if loc.X < buttons[11].posX+buttons[11].frame.W() && loc.X > buttons[11].posX-buttons[11].frame.W()/2 {
+		if loc.Y < buttons[11].posY+buttons[11].frame.H() {
+			return buttonTipCollision
 		}
 	}
 	if loc.X < buttons[6].posX+buttons[6].frame.W() && loc.X > (buttons[6].posX-buttons[6].frame.W()/2) {
@@ -115,6 +126,43 @@ func handleCollision(win *pixelgl.Window) {
 		handleControlsButton(win)
 	case buttonRunCollision:
 		handleRunButton(win)
+	case buttonEstimateCollision:
+		handleEstimateButton(win)
+	case buttonTipCollision:
+		handleTipButton(win)
+	}
+}
+
+func handleMouseHover(win *pixelgl.Window) {
+	switch whereClick(win.MousePosition()) {
+	case noCollision:
+		return
+	case buildingCollision:
+		newHelpMessage("Building", 100, standardFont)
+	case buttonBuildingCollision:
+		newHelpMessage("Add a Building!", 100, standardFont)
+	case buttonWeatherCollision:
+		newHelpMessage("Add Harsh Weather Elements", 100, standardFont)
+	case buttonSignalCollision:
+		newHelpMessage("Add Satellite Error", 100, standardFont)
+	case buttonClearCollision:
+		newHelpMessage("Remove All Elements", 100, standardFont)
+	case buttonPerson1Collision:
+		newHelpMessage("Switch Control For Red", 100, standardFont)
+	case buttonPerson2Collision:
+		newHelpMessage("Switch Control For Purple", 100, standardFont)
+	case buttonScaleCollision:
+		newHelpMessage("Change Scale For P->Q Distance", 100, standardFont)
+	case buttonLineCollision:
+		newHelpMessage("Show Distance Line From P->Q", 100, standardFont)
+	case buttonControlsCollision:
+		newHelpMessage("Show HotKey Controls", 100, standardFont)
+	case buttonRunCollision:
+		newHelpMessage("Run Simulation", 100, standardFont)
+	case buttonEstimateCollision:
+		newHelpMessage("Estimate Positions and Distance", 100, standardFont)
+	case buttonTipCollision:
+		newHelpMessage("Show Last Tip", 100, standardFont)
 	}
 }
 
@@ -135,22 +183,22 @@ func handleMovementKeyPress(win *pixelgl.Window) {
 		walkMap = walkingQ
 	}
 	if win.Pressed(pixelgl.KeyLeft) || win.Repeated(pixelgl.KeyLeft) {
-		walkMap[directionLeft][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+		drawMovingPerson(win, directionLeft, flip, p1)
 		if p1.loc.X > minSpriteX {
 			p1.loc.X -= walkSpeed
 		}
 	} else if win.Pressed(pixelgl.KeyRight) || win.Repeated(pixelgl.KeyRight) {
-		walkMap[directionRight][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+		drawMovingPerson(win, directionRight, flip, p1)
 		if p1.loc.X < maxSpriteX {
 			p1.loc.X += walkSpeed
 		}
 	} else if win.Pressed(pixelgl.KeyUp) || win.Repeated(pixelgl.KeyUp) {
-		walkMap[directionUp][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+		drawMovingPerson(win, directionUp, flip, p1)
 		if p1.loc.Y < maxSpriteY {
 			p1.loc.Y += walkSpeed
 		}
 	} else if win.Pressed(pixelgl.KeyDown) || win.Repeated(pixelgl.KeyDown) {
-		walkMap[directionDown][flip].sprite.Draw(win, p1.mat.Moved(p1.loc))
+		drawMovingPerson(win, directionDown, flip, p1)
 		if p1.loc.Y > minSpriteY {
 			p1.loc.Y -= walkSpeed
 		}
@@ -163,22 +211,22 @@ func handleMovementKeyPress(win *pixelgl.Window) {
 		walkMap = walkingP
 	}
 	if win.Pressed(pixelgl.KeyA) || win.Repeated(pixelgl.KeyA) {
-		walkMap[directionLeft][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+		drawMovingPerson(win, directionLeft, flip, p2)
 		if p2.loc.X > minSpriteX {
 			p2.loc.X -= walkSpeed
 		}
 	} else if win.Pressed(pixelgl.KeyD) || win.Repeated(pixelgl.KeyD) {
-		walkMap[directionRight][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+		drawMovingPerson(win, directionRight, flip, p2)
 		if p2.loc.X < maxSpriteX {
 			p2.loc.X += walkSpeed
 		}
 	} else if win.Pressed(pixelgl.KeyW) || win.Repeated(pixelgl.KeyW) {
-		walkMap[directionUp][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+		drawMovingPerson(win, directionUp, flip, p2)
 		if p2.loc.Y < maxSpriteY {
 			p2.loc.Y += walkSpeed
 		}
 	} else if win.Pressed(pixelgl.KeyS) || win.Repeated(pixelgl.KeyS) {
-		walkMap[directionDown][flip].sprite.Draw(win, p2.mat.Moved(p2.loc))
+		drawMovingPerson(win, directionDown, flip, p2)
 		if p2.loc.Y > minSpriteY {
 			p2.loc.Y -= walkSpeed
 		}
@@ -187,11 +235,9 @@ func handleMovementKeyPress(win *pixelgl.Window) {
 	}
 }
 
-func handleLoadingScreenOk(clicked bool, mousepos pixel.Vec) bool {
-	if clicked {
-		if vectorIntersectionWithObject(mousepos, okbutton) {
-			return true
-		}
+func handleOKButtonClicked(clicked bool, mousepos pixel.Vec) bool {
+	if clicked && vectorIntersectionWithObject(mousepos, okbutton) {
+		return true
 	}
 	return false
 }
@@ -266,6 +312,24 @@ func handleRunButton(win *pixelgl.Window) {
 	buttons[9].drawcount = 10
 }
 
+func handleEstimateButton(win *pixelgl.Window) {
+	buttons[10].drawcount = 10
+	drawingPositionEstimates = !drawingPositionEstimates
+	if drawingPositionEstimates {
+		if currScale == SCALE_M {
+			newMessage("Big Overstimation of Distance", 100, standardFont)
+		} else if currScale == SCALE_KM {
+			newMessage("Small Overstimation of Distance", 100, standardFont)
+		}
+	}
+}
+
+func handleTipButton(win *pixelgl.Window) {
+	buttons[11].drawcount = 10
+	drawingTip = true
+	drawTip(win)
+}
+
 func handleControlsButton(win *pixelgl.Window) {
 	buttons[8].drawcount = 10
 	drawControlScreen(win)
@@ -289,10 +353,7 @@ func handleSignalButton() {
 
 func handleScaleButton() {
 	buttons[6].drawcount = 10
-	currScale++
-	if currScale == len(scaleNames) {
-		currScale = 0
-	}
+	currScale = (currScale + 1) % 2
 	newMessage("Distance scale changed to "+scaleNames[currScale], 100, standardFont)
 }
 
@@ -322,7 +383,6 @@ func collisionDetected(v pixel.Vec, objects []object) bool {
 				return true
 			}
 		}
-		println("new object: [", int(v.X), int(v.Y), "]", "object: [", int(o.loc.X), int(o.loc.Y), "]")
 	}
 	return false
 }

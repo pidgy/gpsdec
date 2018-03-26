@@ -8,22 +8,20 @@ import (
 )
 
 const (
-	maxX                float64 = 1024
-	maxY                float64 = 768
-	left                bool    = true
-	right               bool    = false
-	up                  bool    = true
-	down                bool    = false
-	p                   bool    = true
-	q                   bool    = false
-	spritedirectory     string  = "gpsdec/pics/"
-	backgrounddirectory string  = "background/"
-	buttonsdirectory    string  = "buttons/"
-	objectsdirectory    string  = "objects/"
-	pdirectory          string  = "person1/"
-	qdirectory          string  = "person2/"
-	imgtestdirectory    string  = "tests/"
-	animationdirectory  string  = "animations/"
+	left                bool   = true
+	right               bool   = false
+	up                  bool   = true
+	down                bool   = false
+	p                   bool   = true
+	q                   bool   = false
+	spritedirectory     string = "gpsdec/pics/"
+	backgrounddirectory string = "background/"
+	buttonsdirectory    string = "buttons/"
+	objectsdirectory    string = "objects/"
+	pdirectory          string = "person1/"
+	qdirectory          string = "person2/"
+	imgtestdirectory    string = "tests/"
+	animationdirectory  string = "animations/"
 
 	directionLeft = iota
 	directionRight
@@ -34,7 +32,6 @@ const (
 	minSpriteX  = 5
 	maxSpriteY  = 381
 	minSpriteY  = 100
-	walkSpeed   = 3.0
 	staticSpeed = 3.0
 )
 
@@ -44,6 +41,10 @@ var (
 	buttons       []object
 	rain          []object
 	staticobjects []object
+	pestimate     object
+	qestimate     object
+	pestimates    []object
+	qestimates    []object
 
 	buildinghelp objectqueue
 	buildingnext objectqueue
@@ -53,10 +54,11 @@ var (
 	personQ       object
 	distanceLine  object
 	loadScreen    object
-	okbutton      object
+	okbutton      *object
 	controlScreen object
 	background    object
 	staticobject  object
+	tipmessage    object
 
 	staticBatch *pixel.Batch
 
@@ -73,9 +75,6 @@ var (
 	buildingNames    []string
 	currBuildingName int
 
-	scaleNames []string
-	currScale  int
-
 	currPerson = q
 
 	walkingP map[int][]object
@@ -91,7 +90,8 @@ var (
 	rainSprites     []*pixel.Sprite
 	buildingSprites []*pixel.Sprite
 
-	buttonY = 30.0
+	buttonY   = 30.0
+	walkSpeed = 3.0
 )
 
 type message struct {
@@ -143,6 +143,8 @@ func clearSprites() {
 	drawingDistanceLine = false
 	drawingRain = false
 	drawStatic = false
+	drawingPositionEstimates = false
+	estimatesLoaded = false
 	stopAnimation()
 }
 

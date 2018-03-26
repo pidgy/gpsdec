@@ -11,18 +11,36 @@ import (
 	"github.com/faiface/pixel/text"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+
+	"math/rand"
 )
 
 var (
-	angle                     = 0.0
-	satelliteAngle            = 0.0
-	drawingDistanceLine       = false
-	drawingRain               = false
-	displayMessageAlpha uint8 = 255
-	displayMessage      string
-	displayMessageCount int
-	displayMessageSize  *basicfont.Face
-	standardFont        = basicfont.Face7x13
+	angle                    = 0.0
+	satelliteAngle           = 0.0
+	drawingDistanceLine      = false
+	drawingRain              = false
+	drawingPositionEstimates = false
+	drawingTip               = false
+	drawingTipMessage        = false
+	tipMessage               string
+	tipMessageAlpha          uint8 = 255
+	tipMessageSize           *basicfont.Face
+	currentTipMessageByte    = 0
+	tipMaxScaleX             = 0.0
+	tipCurrScaleX            = 0.0
+	tipMaxScaleY             = 0.0
+	tipCurrScaleY            = 0.0
+	helpMessage              string
+	helpMessageCount         int
+	helpMessageAlpha         uint8 = 255
+	helpMessageSize          *basicfont.Face
+	displayMessageAlpha      uint8 = 255
+	displayMessage           string
+	displayMessageCount      int
+	displayMessageSize       *basicfont.Face
+	standardFont             = basicfont.Face7x13
+	firstRun                 = true
 )
 
 func drawBackground(win *pixelgl.Window) {
@@ -35,8 +53,8 @@ func drawLoadingScreen(win *pixelgl.Window) {
 	load.Wait()
 }
 
-func drawOkButton(win *pixelgl.Window) {
-	okbutton.sprite.Draw(win, pixel.IM.Moved(pixel.V(okbutton.posX, okbutton.posY)))
+func drawOkButton(win *pixelgl.Window, scale float64) {
+	okbutton.sprite.Draw(win, pixel.IM.Scaled(pixel.ZV, scale).Moved(pixel.V(okbutton.posX, okbutton.posY)))
 }
 
 func drawOkButtonPressed(win *pixelgl.Window) {
@@ -52,7 +70,7 @@ func drawControlScreen(win *pixelgl.Window) {
 			win.SetClosed(true)
 			break
 		}
-		if handleLoadingScreenOk(win.JustPressed(pixelgl.MouseButtonLeft), win.MousePosition()) {
+		if handleOKButtonClicked(win.JustPressed(pixelgl.MouseButtonLeft), win.MousePosition()) {
 			drawOkButtonPressed(win)
 			win.Update()
 			break
@@ -60,8 +78,37 @@ func drawControlScreen(win *pixelgl.Window) {
 		for _, l := range loadSats {
 			drawRandom(win, l, 2)
 		}
-		drawOkButton(win)
+		drawOkButton(win, 1)
 		win.Update()
+	}
+}
+
+func drawTip(win *pixelgl.Window) {
+	if !drawingTip {
+		return
+	}
+	okbutton.posY = 284
+	if tipCurrScaleX < tipMaxScaleX {
+		tipCurrScaleX += 5
+	}
+	if tipCurrScaleY < tipMaxScaleY {
+		tipCurrScaleY += 5
+	}
+	scale := tipCurrScaleX / tipMaxScaleX
+	tipmessage.sprite.Draw(win, pixel.IM.Scaled(pixel.ZV, scale).Moved(win.Bounds().Center()))
+	if scale > 0.99 {
+		drawOkButton(win, scale)
+		drawingTipMessage = true
+	}
+	if handleOKButtonClicked(win.JustPressed(pixelgl.MouseButtonLeft), win.MousePosition()) {
+		drawOkButtonPressed(win)
+		drawingTipMessage = false
+		drawingTip = false
+		tipCurrScaleX = 0.0
+		tipCurrScaleY = 0.0
+		if firstRun {
+			firstRun = false
+		}
 	}
 }
 
@@ -88,6 +135,9 @@ func drawSatellites(win *pixelgl.Window) {
 	for i := 0; i < numSatellites; i++ {
 		mat := pixel.IM
 		mat = mat.Scaled(pixel.ZV, 0.1).Rotated(pixel.ZV, satelliteAngle)
+		if currScale == SCALE_KM {
+			mat = mat.Scaled(pixel.ZV, 0.5)
+		}
 		if satellites[i].posX < speed || satellites[i].posX > maxX-speed {
 			satellites[i].directionX = !satellites[i].directionX
 		}
@@ -167,21 +217,15 @@ func drawStaticObjects(win *pixelgl.Window) {
 	staticBatch.Draw(win)
 }
 
-func drawDistanceLine(win *pixelgl.Window) {
+func drawDistanceLine(win *pixelgl.Window, p, q *object) {
 	if !drawingDistanceLine {
 		return
 	}
-	imd := imdraw.New(nil)
-	imd.Color = colornames.Red
-	imd.EndShape = imdraw.RoundEndShape
-	imd.Push(pixel.V(personP.loc.X, personP.loc.Y), pixel.V(personQ.loc.X, personQ.loc.Y))
-	imd.EndShape = imdraw.SharpEndShape
-	imd.Line(1)
-	imd.Draw(win)
+	getDistanceLine(pixel.V(p.loc.X, p.loc.Y), pixel.V(q.loc.X, q.loc.Y)).Draw(win)
 }
 
-func drawDistanceLineLength(win *pixelgl.Window) {
-	x, y := distance(personP.loc, personQ.loc)
+func drawDistanceLineLength(win *pixelgl.Window, p, q *object) {
+	x, y := distance(p.loc, q.loc)
 	angleLen := distanceAngleLength(x, y)
 	basicAtlas := text.NewAtlas(standardFont, text.ASCII)
 	basicTxt := text.New(pixel.V(400, 20), basicAtlas)
@@ -190,7 +234,42 @@ func drawDistanceLineLength(win *pixelgl.Window) {
 }
 
 func drawPerson(win *pixelgl.Window, p *object) {
-	p.sprite.Draw(win, p.mat.Moved(p.loc))
+	if currScale == SCALE_M {
+		p.sprite.Draw(win, p.mat.Moved(p.loc))
+		walkSpeed = 3.0
+	} else if currScale == SCALE_KM {
+		p.sprite.Draw(win, p.mat.Scaled(pixel.ZV, 0.5).Moved(p.loc))
+		walkSpeed = 1.0
+	}
+}
+
+func drawMovingPerson(win *pixelgl.Window, direction, flip int, p *object) {
+	if currScale == SCALE_M {
+		walkMap[direction][flip].sprite.Draw(win, p.mat.Moved(p.loc))
+		walkSpeed = 3.0
+	} else if currScale == SCALE_KM {
+		walkMap[direction][flip].sprite.Draw(win, p.mat.Scaled(pixel.ZV, 0.5).Moved(p.loc))
+		walkSpeed = 1.0
+	}
+}
+
+func drawPositionEstimates(win *pixelgl.Window) {
+	if !drawingPositionEstimates {
+		return
+	}
+	if blink%4 != 0 {
+		return
+	}
+	insertPositionEstimates()
+	prand := &pestimates[rand.Int()%len(pestimates)]
+	qrand := &qestimates[rand.Int()%len(qestimates)]
+	getDistanceLine(pixel.V(prand.loc.X, prand.loc.Y), pixel.V(qrand.loc.X, qrand.loc.Y)).Draw(win)
+	for _, p := range pestimates {
+		p.sprite.Draw(win, p.mat)
+	}
+	for _, q := range qestimates {
+		q.sprite.Draw(win, q.mat)
+	}
 }
 
 func drawRain(win *pixelgl.Window) {
@@ -209,11 +288,15 @@ func drawRain(win *pixelgl.Window) {
 	}
 }
 
-func newMessage(m string, c int, s *basicfont.Face) {
-	displayMessage = m
-	displayMessageCount = c
-	displayMessageSize = s
-	displayMessageAlpha = 255
+func drawOnTipMessage(win *pixelgl.Window, c int) {
+	if !drawingTipMessage {
+		return
+	}
+	basicAtlas := text.NewAtlas(tipMessageSize, text.ASCII)
+	basicTxt := text.New(pixel.V(365, 465), basicAtlas)
+	basicTxt.Color = color.RGBA{0, 0, 0, tipMessageAlpha}
+	fmt.Fprintln(basicTxt, tipMessage[:c])
+	basicTxt.Draw(win, pixel.IM)
 }
 
 func drawMessage(win *pixelgl.Window) {
@@ -225,6 +308,15 @@ func drawMessage(win *pixelgl.Window) {
 		basicTxt.Draw(win, pixel.IM)
 		displayMessageAlpha = uint8(displayMessageAlpha - uint8(int(displayMessageAlpha)/displayMessageCount))
 		displayMessageCount--
+	}
+	if helpMessageCount > 0 {
+		basicAtlas := text.NewAtlas(helpMessageSize, text.ASCII)
+		basicTxt := text.New(pixel.V(10, maxY-100), basicAtlas)
+		basicTxt.Color = color.RGBA{0, 0, 0, helpMessageAlpha}
+		fmt.Fprintln(basicTxt, helpMessage)
+		basicTxt.Draw(win, pixel.IM)
+		helpMessageAlpha = uint8(helpMessageAlpha - uint8(int(helpMessageAlpha)/helpMessageCount))
+		helpMessageCount--
 	}
 
 }
