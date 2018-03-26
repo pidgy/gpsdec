@@ -3,7 +3,8 @@
 ## Simulate GPS Distance Calculation 
 
 
-![alt text](https://i.imgur.com/X2yUh3l.png, "Example")
+![Alt Text](https://media.giphy.com/media/7SQwcRg6HAq1Aen9Cq/giphy.gif)
+
 
 ### Features
 - Move characters P & Q to respective locations
