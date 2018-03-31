@@ -19,7 +19,7 @@ var (
 	angle                    = 0.0
 	satelliteAngle           = 0.0
 	drawingDistanceLine      = false
-	drawingRain              = false
+	drawingWeather           = false
 	drawingPositionEstimates = false
 	drawingTip               = false
 	drawingTipMessage        = false
@@ -41,6 +41,8 @@ var (
 	displayMessageSize       *basicfont.Face
 	standardFont             = basicfont.Face7x13
 	firstRun                 = true
+	elevations               = []float64{230, 1000, 3000, 6800}
+	currElevation            = 0
 )
 
 func drawBackground(win *pixelgl.Window) {
@@ -225,8 +227,7 @@ func drawDistanceLine(win *pixelgl.Window, p, q *object) {
 }
 
 func drawDistanceLineLength(win *pixelgl.Window, p, q *object) {
-	x, y := distance(p.loc, q.loc)
-	angleLen := distanceAngleLength(x, y)
+	angleLen := trueDistance(p, q)
 	basicAtlas := text.NewAtlas(standardFont, text.ASCII)
 	basicTxt := text.New(pixel.V(400, 20), basicAtlas)
 	fmt.Fprintln(basicTxt, fmt.Sprintf("P->Q Distance: %.2f %s", angleLen, scaleNames[currScale]))
@@ -272,17 +273,28 @@ func drawPositionEstimates(win *pixelgl.Window) {
 	}
 }
 
-func drawRain(win *pixelgl.Window) {
-	if drawingRain {
-		for i, rdrop := range rainSprites {
-			rain[i].batch.Clear()
-			rdrop.Draw(rain[i].batch, pixel.IM.Moved(pixel.V(rain[i].posX, rain[i].posY)))
-			rain[i].batch.Draw(win)
-
-			if rain[i].posY < maxY/3 {
-				rain[i].posY = maxY
-			} else {
-				rain[i].posY -= 10
+func drawWeather(win *pixelgl.Window) {
+	if !drawingWeather {
+		return
+	}
+	wea := weatherSprites[currWeather]
+	robj := weatherObjects[currWeather]
+	for i, rdrop := range wea {
+		robj[i].batch.Clear()
+		rdrop.Draw(robj[i].batch, pixel.IM.Moved(pixel.V(robj[i].posX, robj[i].posY)))
+		robj[i].batch.Draw(win)
+		if robj[i].posY < maxY/3 {
+			robj[i].posY = maxY
+		} else {
+			switch currWeather {
+			case WEATHER_RAIN:
+				robj[i].posY -= 10
+			case WEATHER_ASH:
+				robj[i].posY -= 5
+			case WEATHER_DRY:
+				robj[i].posY -= 2
+			case WEATHER_SAND:
+				robj[i].posY -= 30
 			}
 		}
 	}

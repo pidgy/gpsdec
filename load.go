@@ -3,6 +3,7 @@ package gpsdec
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"os"
 
 	"github.com/faiface/pixel"
@@ -32,7 +33,7 @@ func loadAllTheThings() {
 	loadSatelliteFrames()
 	loadButtonFrames()
 	loadHumans()
-	loadRain()
+	loadWeather()
 	loadDistanceLine()
 	loadOkButton()
 	loadPositionEstimates()
@@ -51,6 +52,12 @@ func loadPicture(path string) (pixel.Picture, error) {
 		return nil, err
 	}
 	return pixel.PictureDataFromImage(img), nil
+}
+
+func setPictureColor(im pixel.Picture, color []color.RGBA) pixel.Picture {
+	img := pixel.PictureDataFromPicture(im)
+	img.Pix = color
+	return img
 }
 
 func loadAnimations() {
@@ -170,20 +177,26 @@ func loadHumans() {
 	}
 }
 
-func loadRain() {
-	sprite, err := loadPicture(spritedirectory + objectsdirectory + "raining-tr.png")
-	if err != nil {
-		panic(err)
-	}
-	rain = append(rain, object{
-		frame: sprite.Bounds(),
-		batch: pixel.NewBatch(&pixel.TrianglesData{}, sprite),
-		pic:   sprite,
-		posY:  maxY,
-		posX:  maxX / 2,
-	})
-	for i := range rain {
-		rainSprites = append(rainSprites, pixel.NewSprite(rain[i].pic, rain[i].frame))
+func loadWeather() {
+	weatherSprites = map[int][]*pixel.Sprite{}
+	weatherObjects = map[int][]object{}
+
+	for i, png := range []string{"NONE", "raining-tr.png", "ash-tr.png", "dry-tr.png", "sand-tr.png"} {
+		if i == 0 {
+			continue
+		}
+		sprite, err := loadPicture(spritedirectory + objectsdirectory + png)
+		if err != nil {
+			panic(err)
+		}
+		weatherObjects[i] = append(weatherObjects[i], object{
+			frame: sprite.Bounds(),
+			batch: pixel.NewBatch(&pixel.TrianglesData{}, sprite),
+			pic:   sprite,
+			posY:  maxY,
+			posX:  maxX / 2,
+		})
+		weatherSprites[i] = append(weatherSprites[i], pixel.NewSprite(sprite, sprite.Bounds()))
 	}
 }
 
@@ -239,10 +252,11 @@ func loadButtonFrames() {
 		object{posX: maxX - 40, posY: maxY - 170, filename: spritedirectory + buttonsdirectory + "button-person2.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-person2.png"},
 		object{posX: 280, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-scale.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-scale.png"},
 		object{posX: 360, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-line.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-line.png"},
-		object{posX: maxX - 120, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-controls.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-controls.png"},
-		object{posX: maxX - 200, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-run.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-run.png"},
-		object{posX: maxX - 280, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-estimate.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-estimate.png"},
-		object{posX: maxX - 360, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-tip.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-tip.png"},
+		object{posX: maxX - 115, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-controls.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-controls.png"},
+		object{posX: maxX - 195, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-run.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-run.png"},
+		object{posX: maxX - 270, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-estimate.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-estimate.png"},
+		object{posX: maxX - 345, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-tip.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-tip.png"},
+		object{posX: maxX - 420, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-elevation.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-elevation.png"},
 	}
 
 	for i := 0; i < len(buttons); i++ {

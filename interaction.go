@@ -1,6 +1,8 @@
 package gpsdec
 
 import (
+	"fmt"
+
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 )
@@ -21,10 +23,12 @@ const (
 	buttonRunCollision
 	buttonEstimateCollision
 	buttonTipCollision
+	buttonElevationCollision
 )
 
 var (
 	currSatelliteError = 1
+	currWeather        = 0
 )
 
 func whereClick(loc pixel.Vec) int {
@@ -67,6 +71,11 @@ func whereClick(loc pixel.Vec) int {
 	if loc.X < buttons[11].posX+buttons[11].frame.W() && loc.X > buttons[11].posX-buttons[11].frame.W()/2 {
 		if loc.Y < buttons[11].posY+buttons[11].frame.H() {
 			return buttonTipCollision
+		}
+	}
+	if loc.X < buttons[12].posX+buttons[12].frame.W() && loc.X > buttons[12].posX-buttons[12].frame.W()/2 {
+		if loc.Y < buttons[12].posY+buttons[12].frame.H() {
+			return buttonElevationCollision
 		}
 	}
 	if loc.X < buttons[6].posX+buttons[6].frame.W() && loc.X > (buttons[6].posX-buttons[6].frame.W()/2) {
@@ -130,6 +139,8 @@ func handleCollision(win *pixelgl.Window) {
 		handleEstimateButton(win)
 	case buttonTipCollision:
 		handleTipButton(win)
+	case buttonElevationCollision:
+		handleElevationCollision(win)
 	}
 }
 
@@ -163,6 +174,8 @@ func handleMouseHover(win *pixelgl.Window) {
 		newHelpMessage("Estimate Positions and Distance", 100, standardFont)
 	case buttonTipCollision:
 		newHelpMessage("Show Last Tip", 100, standardFont)
+	case buttonElevationCollision:
+		newHelpMessage(fmt.Sprintf("Change Elevation (Currently: %.1f ft.)", elevations[currElevation]), 100, standardFont)
 	}
 }
 
@@ -310,6 +323,7 @@ func handlePersonKeyPressed(pressed bool) {
 
 func handleRunButton(win *pixelgl.Window) {
 	buttons[9].drawcount = 10
+	estimateDistance()
 }
 
 func handleEstimateButton(win *pixelgl.Window) {
@@ -330,6 +344,12 @@ func handleTipButton(win *pixelgl.Window) {
 	drawTip(win)
 }
 
+func handleElevationCollision(win *pixelgl.Window) {
+	buttons[12].drawcount = 10
+	currElevation = (currElevation + 1) % len(elevations)
+	newMessage(fmt.Sprintf("Elevation changed to: %.1f ft.", elevations[currElevation]), 100, standardFont)
+}
+
 func handleControlsButton(win *pixelgl.Window) {
 	buttons[8].drawcount = 10
 	drawControlScreen(win)
@@ -342,8 +362,24 @@ func handleLineButton() {
 
 func handleWeatherButton() {
 	buttons[1].drawcount = 10
-	drawingRain = !drawingRain
-	newMessage("Changing environment", 100, standardFont)
+	currWeather = (currWeather + 1) % (len(weatherObjects) + 1)
+	switch currWeather {
+	case WEATHER_NONE:
+		newMessage("Removed all weather elements", 100, standardFont)
+		drawingWeather = false
+	case WEATHER_RAIN:
+		newMessage("Adding rain to the environment", 100, standardFont)
+		drawingWeather = true
+	case WEATHER_ASH:
+		newMessage("Adding volcanic ash to the environment", 100, standardFont)
+		drawingWeather = true
+	case WEATHER_DRY:
+		newMessage("Adding dry air to the environment", 100, standardFont)
+		drawingWeather = true
+	case WEATHER_SAND:
+		newMessage("Adding a sandstorm to the environment", 100, standardFont)
+		drawingWeather = true
+	}
 }
 
 func handleSignalButton() {

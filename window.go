@@ -41,7 +41,7 @@ func initMainWindow() {
 			VSync:  true,
 		},
 		winnotclosed: mainNotClosed,
-		showcontrols: true,
+		showcontrols: false,
 	}
 }
 
@@ -87,7 +87,7 @@ func mainNotClosed(win *pixelgl.Window) {
 		handlePersonKeyPressed(win.JustReleased(pixelgl.KeyTab))
 		drawStaticObjects(win)
 		drawButtons(win)
-		drawRain(win)
+		drawWeather(win)
 		drawMessage(win)
 		drawDistanceLine(win, &personP, &personQ)
 		drawDistanceLineLength(win, &personP, &personQ)

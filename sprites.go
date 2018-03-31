@@ -8,6 +8,14 @@ import (
 )
 
 const (
+	WEATHER_NONE = iota
+	WEATHER_RAIN
+	WEATHER_ASH
+	WEATHER_DRY
+	WEATHER_SAND
+)
+
+const (
 	left                bool   = true
 	right               bool   = false
 	up                  bool   = true
@@ -40,6 +48,7 @@ var (
 	satellites    []object
 	buttons       []object
 	rain          []object
+	ash           []object
 	staticobjects []object
 	pestimate     object
 	qestimate     object
@@ -88,10 +97,12 @@ var (
 
 	walkMap         map[int][]object
 	rainSprites     []*pixel.Sprite
+	ashSprites      []*pixel.Sprite
 	buildingSprites []*pixel.Sprite
-
-	buttonY   = 30.0
-	walkSpeed = 3.0
+	weatherSprites  map[int][]*pixel.Sprite
+	weatherObjects  map[int][]object
+	buttonY         = 30.0
+	walkSpeed       = 3.0
 )
 
 type message struct {
@@ -141,7 +152,7 @@ func clearSprites() {
 	staticobjects = []object{}
 	staticobject = object{}
 	drawingDistanceLine = false
-	drawingRain = false
+	drawingWeather = false
 	drawStatic = false
 	drawingPositionEstimates = false
 	estimatesLoaded = false

@@ -1,9 +1,20 @@
 package gpsdec
 
-import "github.com/faiface/pixel"
+import (
+	"fmt"
+
+	"github.com/faiface/pixel"
+)
 
 var (
 	estimatesLoaded = false
+
+	factorPropDelay     = 0
+	factorGPSDrift      = 0
+	factorEphemeris     = 0
+	factorHardware      = 0
+	factorMultipathPro  = 0
+	factorSatelliteGeom = 0
 )
 
 func insertPositionEstimates() {
@@ -12,6 +23,35 @@ func insertPositionEstimates() {
 	} else if currScale == SCALE_KM {
 		createEstimatePlot(5)
 	}
+}
+
+func mapAtmosphericDelay() {
+	switch currWeather {
+	case WEATHER_RAIN:
+	case WEATHER_ASH:
+	case WEATHER_SAND:
+	case WEATHER_DRY:
+	}
+}
+
+func estimateDistance() {
+	println("|--------------------------------------------------------------|")
+	println("|                 gpsdec simulation output                     |")
+	println("|--------------------------------------------------------------|")
+	fmt.Printf("| True distance P->Q: %.2f %s\n", trueDistance(&personP, &personQ), scaleNames[currScale])
+	fmt.Printf("| Current Elevation: %.1f ft.\n", elevations[currElevation])
+	fmt.Printf("| Current Temperature: %.1f ft.\n", elevations[currElevation])
+	if drawingWeather {
+		println("| Propagation Delay: ")
+		mapAtmosphericDelay()
+	}
+	println("|--------------------------------------------------------------|")
+}
+
+func trueDistance(p, q *object) float64 {
+	x, y := distance(p.loc, q.loc)
+	angleLen := distanceAngleLength(x, y)
+	return angleLen
 }
 
 func createEstimatePlot(move int) {
