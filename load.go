@@ -28,6 +28,7 @@ func loadAllTheThings() {
 		"Skyscraper 8",
 	}
 	loadAnimations()
+	loadUserSelectionAnimations()
 	loadControlScreen()
 	loadBackground()
 	loadSatelliteFrames()
@@ -110,6 +111,56 @@ func loadAnimations() {
 		})
 		i++
 	}
+}
+
+func loadUserSelectionAnimations() {
+	userselectionbuttons1 = newObjectQueue("1 ns", maxX/2, maxY/2)
+	userselectionbuttons2 = newObjectQueue("2 ns", maxX/2, maxY/2)
+	userselectionbuttons3 = newObjectQueue("3 ns", maxX/2, maxY/2)
+	userselectionbuttons4 = newObjectQueue("4 ns", maxX/2, maxY/2)
+	allobjects := []object{}
+	i := 1
+	posX := maxX/2 - 110
+	for i < 5 {
+		sprite1, err := loadPicture(spritedirectory + animationdirectory + fmt.Sprintf("user-select-button-%d-up.png", i))
+		sprite2, err := loadPicture(spritedirectory + animationdirectory + fmt.Sprintf("user-select-button-%d-down.png", i))
+		if err != nil {
+			panic(err)
+		}
+		if i != 1 {
+			posX = posX + 75
+		}
+		butup := object{
+			pic:    sprite1,
+			frame:  sprite1.Bounds(),
+			sprite: pixel.NewSprite(sprite1, sprite1.Bounds()),
+			posX:   posX,
+			posY:   maxY / 2,
+			mat:    pixel.IM.Moved(pixel.V(posX, maxY/2)),
+		}
+		butdown := object{
+			pic:    sprite2,
+			frame:  sprite2.Bounds(),
+			sprite: pixel.NewSprite(sprite2, sprite2.Bounds()),
+			posX:   posX,
+			posY:   maxY / 2,
+			mat:    pixel.IM.Moved(pixel.V(posX, maxY/2)),
+		}
+		allobjects = append(allobjects, butup)
+		allobjects = append(allobjects, butdown)
+		i++
+	}
+	userselectionbuttons1.push(allobjects[0])
+	userselectionbuttons1.push(allobjects[1])
+
+	userselectionbuttons2.push(allobjects[3])
+	userselectionbuttons2.push(allobjects[2])
+
+	userselectionbuttons3.push(allobjects[4])
+	userselectionbuttons3.push(allobjects[5])
+
+	userselectionbuttons4.push(allobjects[7])
+	userselectionbuttons4.push(allobjects[6])
 }
 
 func loadDistanceLine() {

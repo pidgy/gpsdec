@@ -23,6 +23,7 @@ var (
 	drawingPositionEstimates = false
 	drawingTip               = false
 	drawingTipMessage        = false
+	drawingUserSelectionWin  = false
 	tipMessage               string
 	tipMessageAlpha          uint8 = 255
 	tipMessageSize           *basicfont.Face
@@ -200,7 +201,7 @@ func drawStaticObject(win *pixelgl.Window) {
 		staticobject.sprite.Draw(win, pixel.IM.Moved(pixel.V(staticobject.loc.X, staticobject.loc.Y)))
 		drawRectangle(win, staticobject)
 	}
-	if drawAnimation {
+	if drawingAnimation {
 		for _, o := range getCurrentAnimation() {
 			atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 			txt := text.New(pixel.V(o.posX-o.descalphaX, o.posY+o.descalphaY), atlas)
@@ -226,10 +227,32 @@ func drawDistanceLine(win *pixelgl.Window, p, q *object) {
 	getDistanceLine(pixel.V(p.loc.X, p.loc.Y), pixel.V(q.loc.X, q.loc.Y)).Draw(win)
 }
 
-func drawDistanceLineLength(win *pixelgl.Window, p, q *object) {
-	angleLen := trueDistance(p, q)
+func drawDistanceLineLengthWithError(win *pixelgl.Window, p, q *object) {
+	angleLen := 0.0
+	if ceZenithPathDelay != 0 {
+		pp := object{loc: personP.loc}
+		qq := object{loc: personQ.loc}
+		pp.loc.X -= ceZenithPathDelay / 10
+		pp.loc.Y -= ceZenithPathDelay / 10
+		qq.loc.X += ceZenithPathDelay / 10
+		qq.loc.Y += ceZenithPathDelay / 10
+		angleLen = ceTrueDistance(&pp, &qq)
+		basicAtlas := text.NewAtlas(standardFont, text.ASCII)
+		basicTxt := text.New(pixel.V(400, 10), basicAtlas)
+		fmt.Fprintln(basicTxt, fmt.Sprintf("P->Q With Err: %.2f %s", angleLen, scaleNames[currScale]))
+		basicTxt.Draw(win, pixel.IM)
+		return
+	}
 	basicAtlas := text.NewAtlas(standardFont, text.ASCII)
-	basicTxt := text.New(pixel.V(400, 20), basicAtlas)
+	basicTxt := text.New(pixel.V(400, 10), basicAtlas)
+	fmt.Fprintln(basicTxt, fmt.Sprintf("P->Q With Err: NK"))
+	basicTxt.Draw(win, pixel.IM)
+}
+
+func drawDistanceLineLength(win *pixelgl.Window, p, q *object) {
+	angleLen := ceTrueDistance(p, q)
+	basicAtlas := text.NewAtlas(standardFont, text.ASCII)
+	basicTxt := text.New(pixel.V(400, 30), basicAtlas)
 	fmt.Fprintln(basicTxt, fmt.Sprintf("P->Q Distance: %.2f %s", angleLen, scaleNames[currScale]))
 	basicTxt.Draw(win, pixel.IM)
 }
@@ -330,7 +353,29 @@ func drawMessage(win *pixelgl.Window) {
 		helpMessageAlpha = uint8(helpMessageAlpha - uint8(int(helpMessageAlpha)/helpMessageCount))
 		helpMessageCount--
 	}
+}
 
+func drawUserSelectionWindow(win *pixelgl.Window) {
+	if !drawingUserSelectionWin {
+		return
+	}
+	if drawingTipMessage && !drawingUserSelectionWin {
+		newMessage("Cannot select options while tip message is displayed!", 100, standardFont)
+		drawingUserSelectionWin = false
+		return
+	}
+	currentAnimation = currentUserSelect
+	tipmessage.sprite.Draw(win, pixel.IM.Moved(pixel.V(maxX/2, maxY/2)))
+	newTipMessage("Select a clock drift in nanoseconds", standardFont)
+	drawingTipMessage = true
+	selection := handleUserSelectInput(win)
+	if selection != 0 {
+		drawingTipMessage = false
+		stopAnimation()
+		gpsClockDrift = selection
+		drawingUserSelectionWin = false
+		newMessage(fmt.Sprintf("GPS Clock drift set to %.2f nanoseconds", selection), 100, standardFont)
+	}
 }
 
 func drawRandom(win *pixelgl.Window, o []object, speed float64) {

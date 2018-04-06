@@ -1,13 +1,21 @@
 package gpsdec
 
 import (
+	"math"
 	"math/rand"
+	"os"
 
 	"github.com/faiface/pixel/imdraw"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 
 	"github.com/faiface/pixel"
+
+	owm "github.com/briandowns/openweathermap"
+)
+
+const (
+	ownAPIKey = "2301adeee7376aae473f2e88288708f6"
 )
 
 var (
@@ -15,9 +23,80 @@ var (
 	currTipMessage = 0
 )
 
+func init() {
+	os.Setenv("OWM_API_KEY", ownAPIKey)
+}
+
 func remove(s []message, i int) []message {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
+}
+
+func celToKel(C float64) float64 {
+	return C + 273.0
+}
+
+func kelToCel(K float64) float64 {
+	return K - 273.0
+}
+
+func kelToFah(K float64) float64 {
+	return K*9/5 - 459.67
+}
+
+func fahToCel(F float64) float64 {
+	return (F - 32) * 5 / 9
+}
+
+func tempChangeFromElevation() float64 {
+	if currWeather == WEATHER_RAIN {
+		return (3.3 * (elevations[currElevation] - elevations[0])) / 1000
+	}
+	return (5.4 * (elevations[currElevation] - elevations[0])) / 1000
+}
+
+func waterVaporPressureAntoine(T float64) float64 {
+	A := 8.07131
+	B := 1730.63
+	C := 233.426
+	if T > 99 {
+		A = 8.07131
+		B = 1730.63
+		C = 233.426
+	}
+	Ptorr := math.Pow(10, (A - (B / (C + T))))
+	return Ptorr
+}
+
+func dryRefractivity(T, P float64) float64 {
+	k1 := 77.6
+	return k1 * (P / T)
+
+}
+
+func wetRefractivity(T, P float64) float64 {
+	k2 := 64.8
+	k3 := 3.776 * (math.Pow(10, 5))
+	return (k2 * (P / T)) + (k3 * (P / math.Pow(T, 2)))
+}
+
+func ptorrToPmb(p float64) float64 {
+	return 1.33322 * p
+}
+
+func getAirPressure() float64 {
+	ap := 1015.0
+	switch elevations[currElevation] {
+	case 6000:
+		ap = 980.0
+	case 3000:
+		ap = 1005.0
+	case 1000:
+		ap = 1025.0
+	case 230:
+		ap = 1050.0
+	}
+	return ap
 }
 
 func scramblePositions(o []object) []object {
@@ -52,6 +131,20 @@ func scrambleYPositions(o []object) []object {
 		ret[i].posY = float64(rand.Int() % int(maxY))
 	}
 	return ret
+}
+
+func getWeather() *owm.CurrentWeatherData {
+	w, err := owm.NewCurrent("K", "EN", ownAPIKey)
+	if err != nil {
+		m := owm.Main{Temp: 303.15}
+		return &owm.CurrentWeatherData{Main: m}
+	}
+	w.CurrentByName("Ottawa")
+	return w
+}
+
+func mmToKm(mm float64) float64 {
+	return mm / 1000000
 }
 
 // Check if a vector lands in the frame of a manually created object

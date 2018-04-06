@@ -16,6 +16,13 @@ const (
 )
 
 const (
+	ELEVATION_230 = iota
+	ELEVATION_1000
+	ELEVATION_3000
+	ELEVATION_6800
+)
+
+const (
 	left                bool   = true
 	right               bool   = false
 	up                  bool   = true
@@ -55,9 +62,13 @@ var (
 	pestimates    []object
 	qestimates    []object
 
-	buildinghelp objectqueue
-	buildingnext objectqueue
-	buildingdone objectqueue
+	userselectionbuttons1 objectqueue
+	userselectionbuttons2 objectqueue
+	userselectionbuttons3 objectqueue
+	userselectionbuttons4 objectqueue
+	buildinghelp          objectqueue
+	buildingnext          objectqueue
+	buildingdone          objectqueue
 
 	personP       object
 	personQ       object

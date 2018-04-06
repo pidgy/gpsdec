@@ -140,7 +140,7 @@ func handleCollision(win *pixelgl.Window) {
 	case buttonTipCollision:
 		handleTipButton(win)
 	case buttonElevationCollision:
-		handleElevationCollision(win)
+		handleElevationButton(win)
 	}
 }
 
@@ -257,16 +257,13 @@ func handleOKButtonClicked(clicked bool, mousepos pixel.Vec) bool {
 
 func handleBuildingAdded(win *pixelgl.Window) {
 	if win.JustPressed(pixelgl.Key1) {
-		if drawAnimation {
+		if drawingAnimation {
 			stopAnimation()
 			staticobject = object{}
 			drawStatic = false
 			return
 		}
 		drawNewBuilding(win.MousePosition())
-	}
-	if win.JustReleased(pixelgl.Key2) {
-		handleWeatherButton()
 	}
 }
 
@@ -305,6 +302,20 @@ func handleStaticMovement(win *pixelgl.Window) {
 	}
 }
 
+func handleUserSelectInput(win *pixelgl.Window) float64 {
+	switch true {
+	case win.JustPressed(pixelgl.Key1) || win.JustReleased(pixelgl.Key1):
+		return 1
+	case win.JustPressed(pixelgl.Key2) || win.JustReleased(pixelgl.Key2):
+		return 2
+	case win.JustPressed(pixelgl.Key3) || win.JustReleased(pixelgl.Key3):
+		return 3
+	case win.JustPressed(pixelgl.Key4) || win.JustReleased(pixelgl.Key4):
+		return 4
+	}
+	return 0
+}
+
 func handleDistanceLineKey(pressed bool) {
 	if pressed {
 		buttons[7].drawcount = 10
@@ -323,7 +334,7 @@ func handlePersonKeyPressed(pressed bool) {
 
 func handleRunButton(win *pixelgl.Window) {
 	buttons[9].drawcount = 10
-	estimateDistance()
+	ceEstimateDistance()
 }
 
 func handleEstimateButton(win *pixelgl.Window) {
@@ -344,7 +355,7 @@ func handleTipButton(win *pixelgl.Window) {
 	drawTip(win)
 }
 
-func handleElevationCollision(win *pixelgl.Window) {
+func handleElevationButton(win *pixelgl.Window) {
 	buttons[12].drawcount = 10
 	currElevation = (currElevation + 1) % len(elevations)
 	newMessage(fmt.Sprintf("Elevation changed to: %.1f ft.", elevations[currElevation]), 100, standardFont)
@@ -384,7 +395,8 @@ func handleWeatherButton() {
 
 func handleSignalButton() {
 	buttons[2].drawcount = 10
-	newMessage(satelliteError(), 100, standardFont)
+	newErr := satelliteError()
+	newMessage(newErr, 100, standardFont)
 }
 
 func handleScaleButton() {
@@ -407,6 +419,10 @@ func handleClearButton() {
 }
 
 func handleBuildingButton(pos pixel.Vec) {
+	if currentAnimation == currentUserSelect {
+		newMessage("Cannot add a building right now!", 100, standardFont)
+		return
+	}
 	newBuilding(pixel.V(maxSpriteX/2, maxSpriteY/2), 1)
 	drawNewBuilding(pixel.V(maxSpriteX/2, maxSpriteY/2))
 	buttons[0].drawcount = 10
@@ -439,9 +455,14 @@ func satelliteError() string {
 		numSatellites = 3
 		returnString = "Readding Satellites"
 	case 5:
-		// TODO add GPS clock drift
+		if currentAnimation == currentBuilding {
+			newMessage("Cannot select clock drift while adding a building!", 100, standardFont)
+		}
+		drawingUserSelectionWin = true
 		numSatellites = 3
-		returnString = "Adding GPS clock drift"
+		returnString = "Select GPS clock drift!"
+		currentTipMessageByte = 0
+		startAnimation(currentUserSelect)
 	}
 	if currSatelliteError == 5 {
 		currSatelliteError = 1

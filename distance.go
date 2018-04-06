@@ -23,7 +23,7 @@ func init() {
 }
 
 func distance(p, q pixel.Vec) (float64, float64) {
-	return (personP.loc.X - personQ.loc.X), (personP.loc.Y - personQ.loc.Y)
+	return (p.X - q.X), (p.Y - q.Y)
 }
 
 func distanceAngle(x, y float64, p, q object) float64 {
