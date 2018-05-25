@@ -16,34 +16,36 @@ import (
 )
 
 var (
-	angle                    = 0.0
-	satelliteAngle           = 0.0
-	drawingDistanceLine      = false
-	drawingWeather           = false
-	drawingPositionEstimates = false
-	drawingTip               = false
-	drawingTipMessage        = false
-	drawingUserSelectionWin  = false
-	tipMessage               string
-	tipMessageAlpha          uint8 = 255
-	tipMessageSize           *basicfont.Face
-	currentTipMessageByte    = 0
-	tipMaxScaleX             = 0.0
-	tipCurrScaleX            = 0.0
-	tipMaxScaleY             = 0.0
-	tipCurrScaleY            = 0.0
-	helpMessage              string
-	helpMessageCount         int
-	helpMessageAlpha         uint8 = 255
-	helpMessageSize          *basicfont.Face
-	displayMessageAlpha      uint8 = 255
-	displayMessage           string
-	displayMessageCount      int
-	displayMessageSize       *basicfont.Face
-	standardFont             = basicfont.Face7x13
-	firstRun                 = true
-	elevations               = []float64{230, 1000, 3000, 6800}
-	currElevation            = 0
+	angle                        = 0.0
+	satelliteAngle               = 0.0
+	drawingDistanceLine          = false
+	drawingWeather               = false
+	drawingPositionEstimates     = false
+	drawingTip                   = false
+	drawingTipMessage            = false
+	drawingUserSelectionWin      = false
+	drawingClockDriftLabel       = false
+	drawingSatelliteDistanceLine = false
+	tipMessage                   string
+	tipMessageAlpha              uint8 = 255
+	tipMessageSize               *basicfont.Face
+	currentTipMessageByte        = 0
+	tipMaxScaleX                 = 0.0
+	tipCurrScaleX                = 0.0
+	tipMaxScaleY                 = 0.0
+	tipCurrScaleY                = 0.0
+	helpMessage                  string
+	helpMessageCount             int
+	helpMessageAlpha             uint8 = 255
+	helpMessageSize              *basicfont.Face
+	displayMessageAlpha          uint8 = 255
+	displayMessage               string
+	displayMessageCount          int
+	displayMessageSize           *basicfont.Face
+	standardFont                 = basicfont.Face7x13
+	firstRun                     = true
+	elevations                   = []float64{230, 1000, 3000, 6800}
+	currElevation                = 0
 )
 
 func drawBackground(win *pixelgl.Window) {
@@ -145,8 +147,10 @@ func drawSatellites(win *pixelgl.Window) {
 			satellites[i].directionX = !satellites[i].directionX
 		}
 		if satellites[i].directionX == left {
+			satellites[i].loc.X -= speed
 			satellites[i].posX -= speed
 		} else {
+			satellites[i].loc.X += speed
 			satellites[i].posX += speed
 		}
 		mat = mat.Moved(pixel.V(satellites[i].posX, 740))
@@ -164,13 +168,6 @@ func drawButtons(win *pixelgl.Window) {
 			button.Draw(win, buttons[i].mat)
 			buttons[i].drawcount--
 		}
-	}
-	if currPerson == p {
-		button := pixel.NewSprite(buttons[4].pressedpic, buttons[4].frame)
-		button.Draw(win, buttons[4].mat)
-	} else {
-		button := pixel.NewSprite(buttons[5].pressedpic, buttons[5].frame)
-		button.Draw(win, buttons[5].mat)
 	}
 }
 
@@ -224,7 +221,17 @@ func drawDistanceLine(win *pixelgl.Window, p, q *object) {
 	if !drawingDistanceLine {
 		return
 	}
-	getDistanceLine(pixel.V(p.loc.X, p.loc.Y), pixel.V(q.loc.X, q.loc.Y)).Draw(win)
+	getDistanceLine(pixel.V(p.loc.X, p.loc.Y), pixel.V(q.loc.X, q.loc.Y), COLOR_RED).Draw(win)
+}
+
+func drawSatelliteDistanceLine(win *pixelgl.Window) {
+	if !drawingSatelliteDistanceLine {
+		return
+	}
+	for _, s := range satellites {
+		p := &personP
+		getDistanceLine(pixel.V(p.loc.X, p.loc.Y), pixel.V(s.loc.X, s.loc.Y), COLOR_BLUE).Draw(win)
+	}
 }
 
 func drawDistanceLineLengthWithError(win *pixelgl.Window, p, q *object) {
@@ -287,7 +294,7 @@ func drawPositionEstimates(win *pixelgl.Window) {
 	insertPositionEstimates()
 	prand := &pestimates[rand.Int()%len(pestimates)]
 	qrand := &qestimates[rand.Int()%len(qestimates)]
-	getDistanceLine(pixel.V(prand.loc.X, prand.loc.Y), pixel.V(qrand.loc.X, qrand.loc.Y)).Draw(win)
+	getDistanceLine(pixel.V(prand.loc.X, prand.loc.Y), pixel.V(qrand.loc.X, qrand.loc.Y), COLOR_GREEN).Draw(win)
 	for _, p := range pestimates {
 		p.sprite.Draw(win, p.mat)
 	}
@@ -366,15 +373,18 @@ func drawUserSelectionWindow(win *pixelgl.Window) {
 	}
 	currentAnimation = currentUserSelect
 	tipmessage.sprite.Draw(win, pixel.IM.Moved(pixel.V(maxX/2, maxY/2)))
-	newTipMessage("Select a clock drift in nanoseconds", standardFont)
+	newTipMessage("Enter a clock drift in nanoseconds", standardFont)
 	drawingTipMessage = true
 	selection := handleUserSelectInput(win)
 	if selection != 0 {
 		drawingTipMessage = false
 		stopAnimation()
-		gpsClockDrift = selection
 		drawingUserSelectionWin = false
 		newMessage(fmt.Sprintf("GPS Clock drift set to %.2f nanoseconds", selection), 100, standardFont)
+		drawingClockDriftLabel = true
+		if userSelectSignal {
+			gpsClockDrift = selection
+		}
 	}
 }
 
@@ -404,4 +414,15 @@ func drawRandom(win *pixelgl.Window, o []object, speed float64) {
 		mat = mat.Moved(pixel.V(o[i].posX, o[i].posY))
 		o[i].sprite.Draw(win, mat)
 	}
+}
+
+func drawClockDriftLabel(win *pixelgl.Window) {
+	if !drawingClockDriftLabel {
+		return
+	}
+	basicAtlas := text.NewAtlas(standardFont, text.ASCII)
+	basicTxt := text.New(pixel.V(400, 50), basicAtlas)
+	basicTxt.Color = color.RGBA{255, 255, 255, 0}
+	fmt.Fprintln(basicTxt, fmt.Sprintf("GPS Clock Drift %.2f ns", gpsClockDrift))
+	basicTxt.Draw(win, pixel.IM)
 }

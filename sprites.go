@@ -167,6 +167,12 @@ func clearSprites() {
 	drawStatic = false
 	drawingPositionEstimates = false
 	estimatesLoaded = false
+	drawingClockDriftLabel = false
+	drawingTip = false
+	drawingTipMessage = false
+	drawingUserSelectionWin = false
+	ephemerisError = false
+	ceZenithPathDelay = 0.0
 	stopAnimation()
 }
 

@@ -23,12 +23,15 @@ const (
 	buttonRunCollision
 	buttonEstimateCollision
 	buttonTipCollision
+	buttonEphemerisCollision
 	buttonElevationCollision
 )
 
 var (
 	currSatelliteError = 1
 	currWeather        = 0
+
+	userSelectSignal = false
 )
 
 func whereClick(loc pixel.Vec) int {
@@ -42,10 +45,10 @@ func whereClick(loc pixel.Vec) int {
 	}
 	if loc.X > 920 {
 		if loc.Y > buttons[4].posY-buttons[4].frame.H()/2 && loc.Y < buttons[4].posY+buttons[4].frame.H()/2 {
-			return buttonPerson1Collision
+			return buttonTipCollision
 		}
 		if loc.Y > buttons[5].posY-buttons[5].frame.H()/2 && loc.Y < buttons[5].posY+buttons[5].frame.H()/2 {
-			return buttonPerson2Collision
+			return buttonControlsCollision
 		}
 	}
 	if loc.X < buttons[7].posX+buttons[7].frame.W() && loc.X > buttons[7].posX-buttons[7].frame.W()/2 {
@@ -70,7 +73,7 @@ func whereClick(loc pixel.Vec) int {
 	}
 	if loc.X < buttons[11].posX+buttons[11].frame.W() && loc.X > buttons[11].posX-buttons[11].frame.W()/2 {
 		if loc.Y < buttons[11].posY+buttons[11].frame.H() {
-			return buttonTipCollision
+			return buttonEphemerisCollision
 		}
 	}
 	if loc.X < buttons[12].posX+buttons[12].frame.W() && loc.X > buttons[12].posX-buttons[12].frame.W()/2 {
@@ -141,6 +144,8 @@ func handleCollision(win *pixelgl.Window) {
 		handleTipButton(win)
 	case buttonElevationCollision:
 		handleElevationButton(win)
+	case buttonEphemerisCollision:
+		handleEphemerisButton(win)
 	}
 }
 
@@ -176,6 +181,8 @@ func handleMouseHover(win *pixelgl.Window) {
 		newHelpMessage("Show Last Tip", 100, standardFont)
 	case buttonElevationCollision:
 		newHelpMessage(fmt.Sprintf("Change Elevation (Currently: %.1f ft.)", elevations[currElevation]), 100, standardFont)
+	case buttonEphemerisCollision:
+		newHelpMessage("Add/Remove Ephemeris Error (Hint: Elevation will affect the error!)", 100, standardFont)
 	}
 }
 
@@ -350,9 +357,19 @@ func handleEstimateButton(win *pixelgl.Window) {
 }
 
 func handleTipButton(win *pixelgl.Window) {
-	buttons[11].drawcount = 10
+	buttons[4].drawcount = 10
 	drawingTip = true
-	drawTip(win)
+}
+
+func handleEphemerisButton(win *pixelgl.Window) {
+	buttons[11].drawcount = 10
+	if !ephemerisError {
+		ephemerisError = true
+		newMessage("Ephemeris Error Has Been Added", 100, standardFont)
+		return
+	}
+	ephemerisError = false
+	newMessage("Ephemeris Error Has Been Removed", 100, standardFont)
 }
 
 func handleElevationButton(win *pixelgl.Window) {
@@ -444,27 +461,35 @@ func satelliteError() string {
 	switch currSatelliteError {
 	case 1:
 		numSatellites--
-		returnString = "Removing Satellite"
+		dopValue = DOP_RANGE_GOOD
+		returnString = "DOP value set to range 2-5 (Good)"
 	case 2:
 		numSatellites--
-		returnString = "Removing Satellite"
+		dopValue = DOP_RANGE_MODERATE
+		returnString = "DOP value set to range 5-10 (Moderate)"
 	case 3:
 		numSatellites--
-		returnString = "Removing Satellite"
+		dopValue = DOP_RANGE_FAIR
+		returnString = "DOP value set to range 10-20 (Fair)"
 	case 4:
-		numSatellites = 3
-		returnString = "Readding Satellites"
+		numSatellites--
+		dopValue = DOP_RANGE_POOR
+		returnString = "DOP value set to > 20 (Poor)"
 	case 5:
+		numSatellites = len(satellites)
+		dopValue = DOP_RANGE_IDEAL
+		returnString = "DOP value set to < 1 (Ideal)"
+	case 6:
 		if currentAnimation == currentBuilding {
 			newMessage("Cannot select clock drift while adding a building!", 100, standardFont)
 		}
 		drawingUserSelectionWin = true
-		numSatellites = 3
 		returnString = "Select GPS clock drift!"
 		currentTipMessageByte = 0
+		userSelectSignal = true
 		startAnimation(currentUserSelect)
 	}
-	if currSatelliteError == 5 {
+	if currSatelliteError == 6 {
 		currSatelliteError = 1
 	} else {
 		currSatelliteError++

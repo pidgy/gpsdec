@@ -299,14 +299,14 @@ func loadButtonFrames() {
 		object{posX: 120, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-weather.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-weather.png"},
 		object{posX: 200, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-gps.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-gps.png"},
 		object{posX: maxX - 40, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-clear.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-clear.png"},
-		object{posX: maxX - 40, posY: maxY - 100, filename: spritedirectory + buttonsdirectory + "button-person1.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-person1.png"},
-		object{posX: maxX - 40, posY: maxY - 170, filename: spritedirectory + buttonsdirectory + "button-person2.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-person2.png"},
+		object{posX: maxX - 40, posY: maxY - 100, filename: spritedirectory + buttonsdirectory + "button-tip.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-tip.png"},
+		object{posX: maxX - 40, posY: maxY - 170, filename: spritedirectory + buttonsdirectory + "button-controls.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-controls.png"},
 		object{posX: 280, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-scale.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-scale.png"},
 		object{posX: 360, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-line.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-line.png"},
 		object{posX: maxX - 115, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-controls.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-controls.png"},
 		object{posX: maxX - 195, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-run.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-run.png"},
 		object{posX: maxX - 270, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-estimate.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-estimate.png"},
-		object{posX: maxX - 345, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-tip.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-tip.png"},
+		object{posX: maxX - 345, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-ephemeris.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-ephemeris.png"},
 		object{posX: maxX - 420, posY: buttonY, filename: spritedirectory + buttonsdirectory + "button-elevation.png", pressedfilename: spritedirectory + buttonsdirectory + "button-pressed-elevation.png"},
 	}
 
@@ -325,19 +325,21 @@ func loadButtonFrames() {
 
 func loadSatelliteFrames() {
 	satellites = []object{
-		object{posX: 900, posY: top, angle: 10, directionX: left, directionY: down},
-		object{posX: 20, posY: top, angle: -0.45, directionX: right, directionY: down},
-		object{posX: maxX / 2, posY: top, angle: -1.5, directionX: left, directionY: down},
+		object{loc: pixel.V(900, top), posX: 900, posY: top, angle: 10, directionX: left, directionY: down},
+		object{loc: pixel.V(20, top), posX: 20, posY: top, angle: -0.45, directionX: right, directionY: down},
+		object{loc: pixel.V(maxX-100, top), posX: maxX - 100, posY: top, angle: -0.25, directionX: right, directionY: down},
+		object{loc: pixel.V(maxX/2, top), posX: maxX / 2, posY: top, angle: -1.5, directionX: left, directionY: down},
 	}
 	sprite, err := loadPicture(spritedirectory + objectsdirectory + "satellite-pixel.png")
 	if err != nil {
 		panic(err)
 	}
-	for i := 0; i < numSatellites; i++ {
+	for i := 0; i < len(satellites); i++ {
 		satellites[i].frame = sprite.Bounds()
 		satellites[i].pic = sprite
 		satellites[i].sprite = pixel.NewSprite(sprite, sprite.Bounds())
 	}
+	numSatellites = len(satellites)
 }
 
 func loadControlScreen() {

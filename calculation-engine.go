@@ -8,7 +8,12 @@ import (
 )
 
 const (
-	gpsDistance = 21000.00
+	gpsDistance        = 21000.00
+	DOP_RANGE_IDEAL    = 1
+	DOP_RANGE_GOOD     = 3
+	DOP_RANGE_MODERATE = 7
+	DOP_RANGE_FAIR     = 15
+	DOP_RANGE_POOR     = 25
 )
 
 var (
@@ -20,6 +25,7 @@ var (
 	factorHardware      = 0
 	factorMultipathPro  = 0
 	factorSatelliteGeom = 0
+	dopValue            = 1
 
 	zenithDelays map[int]float64
 	zenithScales map[int]float64
@@ -27,7 +33,9 @@ var (
 	pv, qv            pixel.Vec
 	ceZenithPathDelay float64
 
-	gpsClockDrift float64
+	gpsClockDrift         float64
+	ephemerisError        bool
+	ephemerisPostionError float64
 )
 
 func init() {
@@ -49,8 +57,8 @@ func insertPositionEstimates() {
 	pv = personP.loc
 	qv = personQ.loc
 	if ceZenithPathDelay != 0 {
-		pv.X -= ceZenithPathDelay / 10
-		qv.X += ceZenithPathDelay / 10
+		pv.X -= ceZenithPathDelay
+		qv.X += ceZenithPathDelay
 	}
 	if currScale == SCALE_M {
 		createEstimatePlot(30, pv, qv)
@@ -108,8 +116,9 @@ func ceEstimateDistance() {
 	printDashLine()
 	drawingDistanceLine = true
 	weather := getWeather()
+	ceZenithPathDelay = 0
 	printFmtOutput(fmt.Sprintf("True distance P->Q: %.2f %s", ceTrueDistance(&personP, &personQ), scaleNames[currScale]))
-	printFmtOutput(fmt.Sprintf("GPS Distance: %.2f km", gpsDistance))
+	printFmtOutput(fmt.Sprintf("GPS Distance from sea level: %.2f km", gpsDistance))
 	printFmtOutput(fmt.Sprintf("GPS Distance given elevation: %.1f km", gpsDistance-elevations[currElevation]))
 	printFmtOutput(fmt.Sprintf("Current Temperature (C): %.2f", kelToCel(weather.Main.Temp)))
 	printFmtOutput(fmt.Sprintf("Current Time: %s", time.Now().UTC()))
@@ -119,8 +128,9 @@ func ceEstimateDistance() {
 	printFmtOutput(fmt.Sprintf("Current Elevation: %.1f ft.", elevations[currElevation]))
 	printFmtOutput(fmt.Sprintf("Current Temperature (K): %.2f", weather.Main.Temp))
 	printFmtOutput(fmt.Sprintf("Checking for measurement error factors.. "))
-
+	measurementError := false
 	if drawingWeather {
+		measurementError = true
 		printDashLine()
 		printFmtOutput("Propagation Delay Detected!")
 		printDashLine()
@@ -129,9 +139,10 @@ func ceEstimateDistance() {
 		printFmtOutput(fmt.Sprintf("[Propagation Delay]: Zenith Path Delay: %.2f mm/km", ZD))
 		printFmtOutput(fmt.Sprintf("[Propagation Delay]: Scale Height of Constituent : %.2f km", zenithScales[currWeather]))
 		printFmtOutput(fmt.Sprintf("[Propagation Delay]: Total Delay: %.2f mm", ZD*ZS))
-		ceZenithPathDelay += ZD * ZS
+		ceZenithPathDelay += (ZD * ZS) / 10
 	}
 	if gpsClockDrift != 0 {
+		measurementError = true
 		printDashLine()
 		printFmtOutput("GPS Clock Drift Detected!")
 		printDashLine()
@@ -139,6 +150,58 @@ func ceEstimateDistance() {
 		printFmtOutput(fmt.Sprintf("[GPS Clock Drift]: Range Error %.2f metres", 0.3*gpsClockDrift))
 		ceZenithPathDelay += gpsClockDrift * 10
 	}
+	if ephemerisError {
+		measurementError = true
+		printDashLine()
+		printFmtOutput("Ephemeris Error Detected!")
+		printDashLine()
+		ephemerisPostionError = ephemerisErrorFromElevation()
+		ceZenithPathDelay += ephemerisPostionError
+
+		printFmtOutput(fmt.Sprintf("[Ephemeris Error]: 3D Position Error %.2f metres", ephemerisPostionError))
+	}
+	if len(staticobjects) > 0 {
+		measurementError = true
+		drawingSatelliteDistanceLine = true
+		printDashLine()
+		printFmtOutput("Multipath Propagation Error Detected!")
+		printFmtOutput(fmt.Sprintf("[Multipath Propogation]: %d Buildings Detected", len(staticobjects)))
+		sig := 0
+		for _, b := range staticobjects {
+			dist := ceTrueDistance(&personP, &b) / 10
+			if dist < 20 {
+				sig++
+			}
+			printFmtOutput(fmt.Sprintf("[Multipath Propogation]: Distance P -> Building %.2f %s", dist, scaleNames[currScale]))
+		}
+		if sig > 0 {
+			printFmtOutput("[Multipath Propogation]: P is within signifigant distance")
+			printFmtOutput(fmt.Sprintf("of %d urban objects", sig))
+			ceZenithPathDelay += float64(sig * 20)
+		} else {
+			printFmtOutput("[Multipath Propogation]: P is not within signifigant distance")
+			printFmtOutput(fmt.Sprintf("of urban objects"))
+		}
+		printDashLine()
+	}
+	if dopValue != DOP_RANGE_IDEAL {
+		printDashLine()
+		measurementError = true
+		printFmtOutput("Satellite Geometry Error Detected!")
+		printFmtOutput(fmt.Sprintf("[Geometry Error] DOP value: %d", dopValue))
+		if dopValue > 5 {
+			ceZenithPathDelay *= (float64(dopValue / 5))
+		} else {
+			ceZenithPathDelay *= (float64(dopValue))
+		}
+		printDashLine()
+	}
+	if !measurementError {
+		printDashLine()
+		printFmtOutput("No measurement errors present")
+	}
+	printDashLine()
+	printFmtOutput(fmt.Sprintf("New Estimated Distance with Error P->Q: %.2f %s", ceEstimatedDistance(), scaleNames[currScale]))
 	printDashLine()
 }
 
@@ -146,6 +209,30 @@ func ceTrueDistance(p, q *object) float64 {
 	x, y := distance(p.loc, q.loc)
 	angleLen := distanceAngleLength(x, y)
 	return angleLen
+}
+
+func ceEstimatedDistance() float64 {
+	pp := object{loc: personP.loc}
+	qq := object{loc: personQ.loc}
+	pp.loc.X -= ceZenithPathDelay / 10
+	pp.loc.Y -= ceZenithPathDelay / 10
+	qq.loc.X += ceZenithPathDelay / 10
+	qq.loc.Y += ceZenithPathDelay / 10
+	return ceTrueDistance(&pp, &qq)
+}
+
+func ephemerisErrorFromElevation() float64 {
+	switch currElevation {
+	case ELEVATION_230:
+		return 6.72
+	case ELEVATION_1000:
+		return 5.28
+	case ELEVATION_3000:
+		return 5.52
+	case ELEVATION_6800:
+		return 3.93
+	}
+	return 1.00
 }
 
 func printFmtOutput(s string) {

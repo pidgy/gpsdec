@@ -41,7 +41,7 @@ func initMainWindow() {
 			VSync:  true,
 		},
 		winnotclosed: mainNotClosed,
-		showcontrols: false,
+		showcontrols: true,
 	}
 }
 
@@ -53,7 +53,7 @@ func initSimWindow() {
 			VSync:  true,
 		},
 		winnotclosed: simNotClosed,
-		showcontrols: false,
+		showcontrols: true,
 	}
 }
 
@@ -80,25 +80,29 @@ func mainNotClosed(win *pixelgl.Window) {
 	for !win.Closed() {
 		drawBackground(win)
 		drawSatellites(win)
+
 		handleCollision(win)
 		handleMovementKeyPress(win)
 		handleBuildingAdded(win)
 		handleDistanceLineKey(win.JustReleased(pixelgl.Key4))
 		handlePersonKeyPressed(win.JustReleased(pixelgl.KeyTab))
+		handleMouseHover(win)
+
 		drawUserSelectionWindow(win)
 		drawStaticObjects(win)
 		drawButtons(win)
 		drawWeather(win)
 		drawMessage(win)
+		drawSatelliteDistanceLine(win)
 		drawDistanceLine(win, &personP, &personQ)
 		drawDistanceLineLength(win, &personP, &personQ)
 		drawDistanceLineLengthWithError(win, &personP, &personQ)
 		drawRectangle(win, object{})
 		drawStaticObject(win)
 		drawPositionEstimates(win)
-		handleMouseHover(win)
 		drawTip(win)
 		drawOnTipMessage(win, currentTipMessageByte)
+		drawClockDriftLabel(win)
 		win.Update()
 
 		if firstRun {

@@ -18,6 +18,13 @@ const (
 	ownAPIKey = "2301adeee7376aae473f2e88288708f6"
 )
 
+const (
+	COLOR_RED = iota
+	COLOR_BLUE
+	COLOR_GREEN
+	COLOR_BLACK
+)
+
 var (
 	tipMessages    = []string{"Welcome to gpsdec! \n\n\nAs you can see you have 2 characters below\n\n\nWe will call them P and Q!"}
 	currTipMessage = 0
@@ -159,9 +166,18 @@ func vectorIntersectionWithObject(src pixel.Vec, dst *object) bool {
 	return false
 }
 
-func getDistanceLine(pvec, qvec pixel.Vec) *imdraw.IMDraw {
+func getDistanceLine(pvec, qvec pixel.Vec, color int) *imdraw.IMDraw {
 	imd := imdraw.New(nil)
-	imd.Color = colornames.Red
+	switch color {
+	case COLOR_RED:
+		imd.Color = colornames.Red
+	case COLOR_BLUE:
+		imd.Color = colornames.Blue
+	case COLOR_GREEN:
+		imd.Color = colornames.Green
+	case COLOR_BLACK:
+		imd.Color = colornames.Black
+	}
 	imd.EndShape = imdraw.RoundEndShape
 	imd.Push(pvec, qvec)
 	imd.EndShape = imdraw.SharpEndShape
